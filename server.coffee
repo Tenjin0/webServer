@@ -2,12 +2,29 @@ fs = require 'fs'
 net = require 'net'
 path = require 'path'
 
-ok = "HTTP/1.0 200 OK\n" + "Content-Type: text/html\n"
+
+header = "HTTP/1.0 200 header
+\n" + "Content-Type: text/html\n"
+html = "<!DOCTYPE html>
+<html>
+<head>
+	<title>Webserver Test</title>
+	<meta charset='utf-8'>
+</head>
+<body>
+	Ceci est le body
+</body>
+</html>
+"
+options =
+  allowHalfOpen: false,
+  pauseOnConnect: false
+
 # HTTPParser = process.binding('http_parser').HTTPParser
 # methods = HTTPParser.methods
 # Transform = require('stream').Transform
 
-server = net.createServer (socket)->
+server = net.createServer options,(socket)->
 	# parser = new HTTPParser(HTTPParser.remoteAddress)
 	# console.log 'parserServer', parser
 	socket.on 'connection',connectionSocket = ->
@@ -15,18 +32,33 @@ server = net.createServer (socket)->
 	socket.on 'connect',connectSocket = ->
 		console.log 'socket : connect'
 	socket.on 'data' , dataSocket = (data)->
-		# socket.write ok
-		# filePath = path.join(__dirname, '/webroot/index.html')
-		# stat = fs.statSync(filePath)
-		# readStream = fs.createReadStream(filePath)
+		console.log  'socket : ' + socket.remoteAddress + ' DATA: -> ' + data
+		# socket.write header
+
+		filePath = path.join(__dirname, '/webroot/index.html')
+		stat = fs.statSync(filePath)
+		readStream = fs.createReadStream(filePath)
+		socket.write header
+		socket.write '\r\n'
+		# socket.write readStream
+		# socket.write filePath
+		readStream.on 'open', ->
+			readStream.pipe socket
+			console.log 'readStream ouvert'
+		readStream.on 'close', ->
+			console.log 'readStream close'
+			socket.end()
 		# readStream.pipe socket
-		# console.log  'socket : DATA ' + socket.remoteAddress + ': ' + data
+		# socket.write null
+		# socket.write html
+		# socket.end()
 	socket.on 'error',errorSocket = ->
 		console.log 'socket : error'
 	socket.on 'close',closeSocket = ->
 		console.log 'socket : close'
 
-server.listen 8124,'localhost', listenCallback = ->
+
+server.listen 3333,'patrice', listenCallback = ->
 	address = server.address()
 	console.log 'server bound',address
 
@@ -37,29 +69,37 @@ server.listen 8124,'localhost', listenCallback = ->
 
 		sock.on 'connect',connectSocket = ->
 			console.log 'socket inside: connect'
-		sock.on 'data' , dataSocket = (data)->
-			array = data.split '\n'
-			console.log array[0]
-			sock.pipe ok
+		# sock.on 'data' , dataSocket = (data)->
+		# 	console.log 'sock:on',data
+			# array = data.split '\n'
+			# console.log array[0]
+			# sock.pipe header
 
-			filePath = path.join(__dirname, '/webroot/index.html')
-			stat = fs.statSync(filePath)
-			readStream.on('open', function () {
-			#This just pipes the read stream to the response object (which goes to the client)
-    readStream.pipe(res);
-});
+			# sock.write header
 
-# This catches any errors that happen while creating the readable stream (usually invalid names)
-readStream.on('error', function(err) {
-res.end(err);
-});
-			readStream.pipe sock
-			console.log  'sock : DATA ','encoding', sock.remoteAddress, ': ', data
-			
-		sock.on 'error',errorSocket = ->
-			console.log 'socket inside: error'
-		sock.on 'close',closeSocket = ->
-			console.log 'socket inside: close'
+			# sock.write html
+			# filePath = path.join(__dirname, '/webroot/min.html')
+			# stat = fs.statSync(filePath)
+
+			# readStream = fs.createReadStream(filePath)
+
+			# readStream.on 'open', openCallback = ->
+				#body of the callback open:event
+				# sock.write 'open:event', header
+
+			# 	console.log 'readStream:open'
+			# readStream.on 'error', errorCallback = ->
+			# sock.write header
+			# sock.end()
+			# readStream.on 'close', closeCallback = ->
+			# 	console.log 'readStream on:close'
+
+			# readStream.pipe sock
+			# console.log  'sock : DATA ', sock.remoteAddress, ': ', data
+		sock.on 'error',errorSock = ->
+			console.log 'sock inside: error'
+		sock.on 'close',closeSock = ->
+			console.log 'sock inside: close'
 
 
 	server.on 'close',closeServer = ->
