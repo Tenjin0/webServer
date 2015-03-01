@@ -84,9 +84,10 @@ arrayContains = (array, data)->
 			return true
 	false
 
-constructHeader = (protocole,code,ext, lengthFile) ->
+constructHeader = (protocole, code, ext, lengthFile) ->
 	contentLength = if length then "Content-Length:" + lengthFile+ "\r\n" else ""
-	protocole+ " " + code + " " +  statusCode[code] + "\r\n" + "Content-Type: text/"+ ext + "\r\n" + contentLength + "Connection: close"+ "\r\n"+ "\r\n"
+	contentExt = if ext then "Content-Type: text/"+ ext + "\r\n" else ""
+	protocole+ " " + code + " " +  statusCode[code] + "\r\n" + contentExt + contentLength + "Connection: close"+ "\r\n"+ "\r\n"
 
 requestLineHeaderJSON = requestLine httpRequest
 console.log 'firstLineHeaderJSON', requestLineHeaderJSON
@@ -122,17 +123,16 @@ server = net.createServer options,(socket)->
 			filePath = path.join(root , chemin)
 			extension = (path.extname filePath.toLowerCase()).replace '.', ''
 			console.log 'search ', filePath, extension
-			stats = fs.statSync(filePath)
+			stats = fs.statSync(filePath) # passer en asynchrone
 			if stats.isFile()
 				header = constructHeader requestLineHeaderJSON['protocol'],"200", extension,stats["size"]
 				readStream = fs.createReadStream(filePath)
 				socket.write header
-				socket.write '\r\n\r\n'
 			else
-				header = constructHeader requestLineHeaderJSON['protocol'],"200", extension
+				header = constructHeader requestLineHeaderJSON['protocol'],"404", null
 			readStream.on 'open', ->
 				console.log 'readStream ouvert'
-				if requestLineHeaderJSON['method'].toUpperCase() is 'GET' ||  requestLineHeaderJSON['method'].toUpperCase() is 'POST'
+				if requestLineHeaderJSON['method'].toUpperCase() is not 'HEADER'
 					readStream.pipe socket
 				# readStream.close()
 			readStream.on 'close', ->
