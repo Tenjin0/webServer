@@ -132,7 +132,8 @@ server = net.createServer options,(socket)->
 				header = constructHeader requestLineHeaderJSON['protocol'],"200", extension
 			readStream.on 'open', ->
 				console.log 'readStream ouvert'
-				readStream.pipe socket
+				if requestLineHeaderJSON['method'].toUpperCase() is 'GET' ||  requestLineHeaderJSON['method'].toUpperCase() is 'POST'
+					readStream.pipe socket
 				# readStream.close()
 			readStream.on 'close', ->
 				console.log 'readStream close'
