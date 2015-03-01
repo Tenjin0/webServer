@@ -85,8 +85,9 @@ arrayContains = (array, data)->
 	false
 
 constructHeader = (protocole,code,ext, lengthFile) ->
-	protocole+ " " + code + " " +  statusCode[code] + "\r\n" + "Content-Type: text/"+ ext + "\r\n" + "Content-Length:" + lengthFile+ "\r\n" + "Connection: close"+ "\r\n"+ "\r\n"
-	
+	contentLength = if length then "Content-Length:" + lengthFile+ "\r\n" else ""
+	protocole+ " " + code + " " +  statusCode[code] + "\r\n" + "Content-Type: text/"+ ext + "\r\n" + contentLength + "Connection: close"+ "\r\n"+ "\r\n"
+
 requestLineHeaderJSON = requestLine httpRequest
 console.log 'firstLineHeaderJSON', requestLineHeaderJSON
 chemin = requestLineHeaderJSON['path']
