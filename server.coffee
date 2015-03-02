@@ -43,45 +43,22 @@ contentTypeMap =
 		tab :['html','css']
 
 
+-errorHtml =
+-"<!DOCTYPE html>
+-<html>
+-<head>
+-	<title>Webserver Test</title>
+-	<meta charset='utf-8'>
+-</head>
+-<body>
+-	<H2>The page you trying to access was not found</H2>
+-</body>
+-</html>"
 
 REQUESTLINEREGEX = new RegExp "[GET|POST|HEAD][ ]([\/].*[ ]){0,1}HTTP\/1\.[0-9]"
 PARENTDIRECTORYREGEX = new RegExp "[\.]{2,}[\/].*"
 
-
-testHeader =
-	"GET / HTTP/1.1"
-
- # DONNEE DE TEST
-httpRequest =
-	"GET / HTTP/1.0\r\n
-	Host: patrice:3333\r\n
-	Connection: keep-alive\r\n
-	Cache-Control: max-age=0\r\n
-	Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8\r\n
-	User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/40.0.2214.111 Chrome/40.0.2214.111 Safari/537.36\r\n
-	Accept-Encoding: gzip, deflate, sdch\r\n
-	Accept-Language: fr-FR,fr;q=0.8,en-US;q=0.6,en;q=0.4\r\n
-	"
-
-html =
-"<!DOCTYPE html>
-<html>
-<head>
-	<title>Webserver Test</title>
-	<meta charset='utf-8'>
-</head>
-<body>
-	Ceci est le body
-</body>
-</html>
-"
-
-
-
-
-
-FindContentTypeFile = (ext)->
-
+findContentTypeFile = (ext)->
 	if !(ext is null)
 		for i,tab of contentTypeMap
 			index = tab['tab'].indexOf ext
@@ -129,7 +106,7 @@ dataToArray = (data)->
 
 constructHeader = (protocole, ext, code, lengthFile) ->
 
-	contentType = FindContentTypeFile ext
+	contentType = findContentTypeFile ext
 	# console.log 'contentType',
 	contentSubType = if contentType['replace'] is null then 'plain' else contentType['replace']
 	#  console.log 'contenType', contentType, ext
@@ -181,7 +158,7 @@ constructHeader = (protocole, ext, code, lengthFile) ->
 
 
 
-server = net.createServer (socket)->
+server = net.createServer options, (socket)->
 
 	socket.on 'connection',connectionSocket = ->
 		console.log 'socket : connection' + socket.remoteAddress +':'+ socket.remotePort + "\n"
@@ -193,31 +170,39 @@ server = net.createServer (socket)->
 		# console.log 'chemin', chemin
 		if !PARENTDIRECTORYREGEX.test chemin && REQUESTLINEREGEX.test chemin
 			# console.log 'chemin.match',!PARENTDIRECTORYREGEX.test chemin
-			filePath = path.join(root , chemin)
+			AbsolutePath = path.join(root , chemin)
 			# console.log 'filePath', filePath
-			extension = (path.extname filePath.toLowerCase()).replace '.', ''
+			extension = (path.extname AbsolutePath.toLowerCase()).replace '.', ''
 			# console.log 'search ', filePath, extension
 			tempExtension = extension
-			fs.stat filePath, (err,stats)->
+			fs.stat AbsolutePath, (err,stats)->
 				if err
 					headerResponse = constructHeader requestLineHeaderJSON['protocol'],tempExtension, "404"
 					console.log 'err',err
+					socket.write errorHtml
+					socket.end()
+
 				else if stats.isFile()
 					headerResponse = constructHeader requestLineHeaderJSON['protocol'],tempExtension, "200", stats["size"]
-					readStream = fs.createReadStream(filePath)
+					readStream = fs.createReadStream(AbsolutePath)
 				else
+					# A CONTINUER SuiVANT LES CAS
 					headerResponse = constructHeader requestLineHeaderJSON['protocol'],tempExtension, "404"
+
+
 				# console.log 'headerResponse',chemin,headerResponse
 				socket.write headerResponse
 				# console.log headerResponse
-				readStream.on 'open', ->
-					# console.log 'readStream ouvert'
-					console.log requestLineHeaderJSON['method'].toUpperCase(),requestLineHeaderJSON['method'].toUpperCase() is 'GET' || requestLineHeaderJSON['method'].toUpperCase() is 'POST'
-					if (requestLineHeaderJSON['method'].toUpperCase() is 'GET') || (requestLineHeaderJSON['method'].toUpperCase() is 'POST')
-						readStream.pipe socket
-					# readStream.close()
-				readStream.on 'close', ->
-					# console.log 'readStream close'
+				if readStream
+					console.log  'je rentre dans le redStream'
+					readStream.on 'open', ->
+						# console.log 'readStream ouvert'
+						console.log requestLineHeaderJSON['method'].toUpperCase(),requestLineHeaderJSON['method'].toUpperCase() is 'GET' || requestLineHeaderJSON['method'].toUpperCase() is 'POST'
+						if (requestLineHeaderJSON['method'].toUpperCase() is 'GET') || (requestLineHeaderJSON['method'].toUpperCase() is 'POST')
+							readStream.pipe socket
+						# readStream.close()
+					readStream.on 'close', ->
+						# console.log 'readStream close'
 
 	socket.on 'error',errorSocket = ->
 		# console.log 'socket : error'
