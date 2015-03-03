@@ -1,13 +1,20 @@
+# MODULES RECQUIS
 fs = require 'fs'
 net = require 'net'
 path = require 'path'
 
-root = __dirname + '/webroot'
+# CONSTANTTE
+ROOT = __dirname + '/webroot'
+DEFAULT_PROTOCOL = 'HTTP/1.0'
+DEFAULT_EXTENSION = '.html'
 
-options =
-  allowHalfOpen: false,
-  pauseOnConnect: false
+# REGEX
+FIRST_LINE_REGEX = new RegExp "(GET|POST|HEAD)[ ]([\/].*[ ]){1,}HTTP\/1\.[0-9]"
+PARENT_DIRECTORY_REGEX = new RegExp "[\.]{2,}[\/].*"
+METHOD_REGEX  = new RegExp "(GET|POST|HEAD)"
 
+
+# DATA
 statusCode =
 	200 : "OK"
 	201 : "Created"
@@ -25,9 +32,6 @@ statusCode =
 	502 : "Bad Gateway"
 	503 : "Service Unavailable"
 
-simpleHeader =
-	"GET / HTTP/1.0"
-
 contentTypeMap =
 	'image' :
 		tab : [".jpg",".jpeg",".png",".bmp",".gif"]
@@ -44,16 +48,16 @@ contentTypeMap =
 	'text' :
 		tab :['.html','.css']
 
+
 # transform contentTypeMap in a more simple array ext -> contentType
 newContentTypeMap = []
 for type,tab of contentTypeMap
-	# console.log 'toto'
 	for ext in tab['tab']
 		subType = if tab['replace'] is undefined then ext.replace('.', '') else tab['replace']
-		# console.log ext, newContentTypeMap[ext] = "#{type}/#{subType}"
 		newContentTypeMap.push (newContentTypeMap[ext] = "#{type}/#{subType}")
 
 
+# OBJET AND FUNCTION
 errorHtml = (code) ->
 	body : "<!DOCTYPE html>
 <html>
@@ -68,33 +72,11 @@ errorHtml = (code) ->
 "
 	toString : ->
 		return @body.toString()
-html =
-"<!DOCTYPE html>
-<html>
-<head>
-	<title>Webserver Test</title>
-	<meta charset='utf-8'>
-</head>
-<body>
-	Ceci est le body
-</body>
-</html>
-"
-
-FIRST_LINE_REGEX = new RegExp "(GET|POST|HEAD)[ ]([\/].*[ ]){1,}HTTP\/1\.[0-9]"
-PARENT_DIRECTORY_REGEX = new RegExp "[\.]{2,}[\/].*"
-METHOD_REGEX  = new RegExp "(GET|POST|HEAD)"
-DEFAULT_PROTOCOL = 'HTTP/1.0'
-DEFAULT_EXTENSION = '.html'
-
-# for i,tab of contentTypeMap
-# 	console.log '>>>>>>>', i, tab
 
 
 extractRequestLine = (data)->
 
 	firstLine =  (data.toString().split "\r\n")[0]
-	# console.log 'firstLine',firstLine
 	if FIRST_LINE_REGEX.test firstLine
 		requestLineArray = firstLine.split " "
 		requestLineJSON =
@@ -106,8 +88,7 @@ extractRequestLine = (data)->
 
 createResponseHeader = (protocole, code, ext, lengthFile) ->
 	statusLine  : "#{protocole} #{code} #{statusCode[code]}\r\n"
-	# protocole + ' ' + code + ' ' + statusCode[code]
-	date : null
+	date : "Date: " + new Date().getTime() + "\r\n"
 	server : null
 	contentType : "Content-Type: "  + if ext && !(newContentTypeMap[ext] is undefined) then "#{newContentTypeMap[ext]}\r\n" else "text/plain\r\n"
 	contentLength : if lengthFile then "Content-Length: #{lengthFile}\r\n" else "Content-Length: 0\r\n"
@@ -116,56 +97,16 @@ createResponseHeader = (protocole, code, ext, lengthFile) ->
 	connection : "Connection: close\r\n"
 
 	toString :->
-		"#{@statusLine}#{@contentType}#{@contentLength}#{@connection}\r\n"
+		"#{@statusLine}#{@date}#{@contentType}#{@contentLength}#{@connection}\r\n"
 
 
+ServerOptions =
+  allowHalfOpen: false,
+  pauseOnConnect: false
 
-# DONNEE DE TEST
-httpRequest =
-	"GET / HTTP/1.0\r\n
-	Host: patrice:3333\r\n
-	Connection: keep-alive\r\n
-	Cache-Control: max-age=0\r\n
-	Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8\r\n
-	User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/40.0.2214.111 Chrome/40.0.2214.111 Safari/537.36\r\n
-	Accept-Encoding: gzip, deflate, sdch\r\n
-	Accept-Language: fr-FR,fr;q=0.8,en-US;q=0.6,en;q=0.4\r\n
-	"
 
-# TEST
-
-# console.log newContentTypeMap
-# requestLineHeader = extractRequestLine httpRequest
-# console.log requestLineHeader
-# if requestLineHeader
-# 	absolutePath = path.join(root , requestLineHeader['path'])
-# 	tempExtension = (path.extname absolutePath.toLowerCase()).replace '.', ''
-	# tempExtension = if tempExtension is '' then null else tempExtension
-# 	if extension is ''
-# 		console.log 'extension est une chaine vide xD'
-# 	else
-# 		console.log requestLineHeader['path'], 'extension', extension
-# 	stats = fs.statSync absolutePath
-# 	console.log stats.isDirectory()
-# 	header = createResponseHeader requestLineHeader['protocol'],403,extension
-# 	console.log  header
-# else
-# 	header = createResponseHeader DEFAULT_PROTOCOL,400
-# console.log '<< headerResponse >>\n' +  header.toString()
-# console.log (errorHtml 400).toString()
-# string = "GET /images HTTP/1.0"
-# console.log 'match', string.match FIRST_LINE_REGEX
-# console.log 'search', string.search FIRST_LINE_REGEX
-# console.log 'test', FIRST_LINE_REGEX.test string
-# console.log 'exec', FIRST_LINE_REGEX.exec string
-
-# console.log newContentTypeMap['.map']
-
-# for index, value of newContentTypeMap
-# 	(stat = ->
-# 		console.log index,value
-# 	)()
-server = net.createServer options, (socket)->
+#SERVER
+server = net.createServer ServerOptions, (socket)->
 
 	socket.on 'connection',connectionSocket = ->
 
@@ -176,10 +117,8 @@ server = net.createServer options, (socket)->
 	socket.on 'data' , dataSocket = (data)->
 
 		requestLineHeader = extractRequestLine data
-		console.log  'data', data
-		console.log 'requestLineHeader', requestLineHeader
 		if requestLineHeader #&& !PARENT_DIRECTORY_REGEX.test requestLineHeader['path']
-			absolutePath = path.join(root , requestLineHeader['path'])
+			absolutePath = path.join(ROOT , requestLineHeader['path'])
 			extension = (path.extname absolutePath.toLowerCase())
 			fs.stat absolutePath, (err,stats)->
 				codeError = null
@@ -191,8 +130,7 @@ server = net.createServer options, (socket)->
 					codeError = 403
 				else if stats.isFile()
 					headerResponse = createResponseHeader requestLineHeader['protocol'], 200,extension, tempStats["size"]
-					readStream = fs.createReadStream(absolutePath)
-					# socket.write headerResponse.toString()
+					readStream = fs.createReadStream absolutePath
 				else if stats.isDirectory()
 					codeError = 403
 
@@ -200,6 +138,7 @@ server = net.createServer options, (socket)->
 					headerResponse = createResponseHeader requestLineHeader['protocol'], codeError, DEFAULT_EXTENSION,Buffer.byteLength((errorHtml codeError).toString(), 'utf8')
 					socket.write headerResponse.toString(),->
 						socket.write (errorHtml codeError).toString() + '\n'
+
 				console.log '>>>>> \n'
 				console.log '\n',requestLineHeader['path'], 'extension', extension
 				console.log headerResponse.toString()
@@ -208,16 +147,12 @@ server = net.createServer options, (socket)->
 						if (requestLineHeader['method'].toUpperCase() is 'GET') || (requestLineHeader['method'].toUpperCase() is 'POST')
 							socket.write headerResponse.toString(),->
 								readStream.pipe socket
-						# else
-						# 	socket.end()
 					readStream.on 'close', ->
-						console.log 'readStream close'
+						# console.log 'readStream close'
 
 		else
 			headerResponse = createResponseHeader DEFAULT_PROTOCOL, 400
 			console.log 'headerResponse error', headerResponse.toString()
-			# console.log errorHtml 400
-			# socket.write (errorHtml 400).toString() + '\n'
 			socket.write headerResponse.toString()
 
 
