@@ -111,8 +111,8 @@ extractRequestLine = (data)->
 	console.log 'array', array
 	if REQUEST_LINE_REGEX.test array
 		# console.log 'array', array
-		JSON.stringify()
-		requestLineArray = array[0]
+		# JSON.stringify()
+		requestLineArray = array.split(' ')
 		console.log requestLineArray.toString()
 		requestLineJSON =
 			"method" : requestLineArray[0]
@@ -137,7 +137,7 @@ createResponseHeader = (protocole, ext, code, lengthFile) ->
 	statusLine  : "#{protocole} #{code} #{statusCode[code]}\r\n"
 	# protocole + ' ' + code + ' ' + statusCode[code]
 	contentType : "Content-Type: #{newContentTypeMap[ext]}\r\n"
-	contentLength : "Content-Length: #{lengthFile}\r\n" if lengthFile
+	contentLength : if lengthFile then "Content-Length: #{lengthFile}\r\n" else "Content-Length: 0\r\n"
 	connection : "Connection: close\r\n"
 
 	toString : -> 
@@ -195,7 +195,7 @@ console.log 'headerResponse ', header
 
 # console.log 'options', options = FindContentTypeFile 'js'
 console.log newContentTypeMap
-console.log (createResponseHeader "HTTP/1.0" , 'html', 200, 900).toString()
+console.log (createResponseHeader "HTTP/1.0" , 'html', 200).toString()
 
 server = net.createServer options, (socket)->
 
@@ -223,9 +223,11 @@ server = net.createServer options, (socket)->
 					else if stats.isFile()
 						headerResponse = constructHeader requestLineHeaderJSON['protocol'],tempExtension, 200, stats["size"]
 						readStream = fs.createReadStream(absolutePath)
-					else
+					else if stats.isDirectory()
+
 						# A CONTINUER SuiVANT LES CAS
-						headerResponse = constructHeader requestLineHeaderJSON['protocol'],tempExtension, 404
+						headerResponse = constructHeader requestLineHeaderJSON['protocol'],tempExtension, 403
+						console.log headerResponse
 						socket.write errorHtml
 						socket.end()
 

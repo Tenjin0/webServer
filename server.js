@@ -103,8 +103,7 @@
     array = (data.split("\r\n"))[0];
     console.log('array', array);
     if (REQUEST_LINE_REGEX.test(array)) {
-      JSON.stringify();
-      requestLineArray = array[0];
+      requestLineArray = array.split(' ');
       console.log(requestLineArray.toString());
       requestLineJSON = {
         "method": requestLineArray[0],
@@ -134,7 +133,7 @@
     return {
       statusLine: protocole + " " + code + " " + statusCode[code] + "\r\n",
       contentType: "Content-Type: " + newContentTypeMap[ext] + "\r\n",
-      contentLength: lengthFile ? "Content-Length: " + lengthFile + "\r\n" : void 0,
+      contentLength: lengthFile ? "Content-Length: " + lengthFile + "\r\n" : "Content-Length: 0\r\n",
       connection: "Connection: close\r\n",
       toString: function() {
         return "" + this.statusLine + this.contentType + this.contentLength + this.connection + "\r\n";
@@ -169,7 +168,7 @@
 
   console.log(newContentTypeMap);
 
-  console.log((createResponseHeader("HTTP/1.0", 'html', 200, 900)).toString());
+  console.log((createResponseHeader("HTTP/1.0", 'html', 200)).toString());
 
   server = net.createServer(options, function(socket) {
     var closeSocket, connectSocket, connectionSocket, dataSocket, errorSocket;
@@ -196,8 +195,9 @@
           } else if (stats.isFile()) {
             headerResponse = constructHeader(requestLineHeaderJSON['protocol'], tempExtension, 200, stats["size"]);
             readStream = fs.createReadStream(absolutePath);
-          } else {
-            headerResponse = constructHeader(requestLineHeaderJSON['protocol'], tempExtension, 404);
+          } else if (stats.isDirectory()) {
+            headerResponse = constructHeader(requestLineHeaderJSON['protocol'], tempExtension, 403);
+            console.log(headerResponse);
             socket.write(errorHtml);
             socket.end();
           }
