@@ -30,28 +30,93 @@ simpleHeader =
 
 contentTypeMap =
 	'image' :
-		tab : ["jpg","jpeg","png","bmp","gif"]
+		tab : [".jpg",".jpeg",".png",".bmp",".gif"]
 
 	'application' :
-		tab : ['js']
+		tab : ['.js']
 		replace : ['javascript']
 	'video' :
-		tab : ['mp4']
+		tab : ['.mp4']
 
 	'audio' :
-		tab : ['mp3']
+		tab : ['.mp3']
 
 	'text' :
-		tab :['html','css']
+		tab :['.html','.css']
 
 # transform contentTypeMap in a more simple array ext -> contentType
 newContentTypeMap = []
 for type,tab of contentTypeMap
 	# console.log 'toto'
 	for ext in tab['tab']
-		subType = if tab['replace'] is undefined then ext else tab['replace']
+		subType = if tab['replace'] is undefined then ext.replace('.', '') else tab['replace']
 		# console.log ext, newContentTypeMap[ext] = "#{type}/#{subType}"
 		newContentTypeMap.push (newContentTypeMap[ext] = "#{type}/#{subType}")
+
+
+errorHtml = (code) ->
+	body : "<!DOCTYPE html>
+<html>
+<head>
+	<title>Webserver Test</title>
+	<meta charset='utf-8'>
+</head>
+<body>
+	<H2>#{code} #{statusCode[code]}</H2>
+</body>
+</html>
+"
+	toString : ->
+		return @body.toString()
+html =
+"<!DOCTYPE html>
+<html>
+<head>
+	<title>Webserver Test</title>
+	<meta charset='utf-8'>
+</head>
+<body>
+	Ceci est le body
+</body>
+</html>
+"
+
+FIRST_LINE_REGEX = new RegExp "(GET|POST|HEAD)[ ]([\/].*[ ]){1,}HTTP\/1\.[0-9]"
+PARENT_DIRECTORY_REGEX = new RegExp "[\.]{2,}[\/].*"
+METHOD_REGEX  = new RegExp "(GET|POST|HEAD)"
+DEFAULT_PROTOCOL = 'HTTP/1.0'
+DEFAULT_EXTENSION = '.html'
+
+# for i,tab of contentTypeMap
+# 	console.log '>>>>>>>', i, tab
+
+
+extractRequestLine = (data)->
+
+	firstLine =  (data.toString().split "\r\n")[0]
+	# console.log 'firstLine',firstLine
+	if FIRST_LINE_REGEX.test firstLine
+		requestLineArray = firstLine.split " "
+		requestLineJSON =
+			"method" : requestLineArray[0] # firstLine.substring 0,indexOf(' ')
+			"path" : if requestLineArray[1] == '/' then 'index.html' else requestLineArray[1]
+			"protocol" : requestLineArray[2]
+		return requestLineJSON
+	return null
+
+createResponseHeader = (protocole, code, ext, lengthFile) ->
+	statusLine  : "#{protocole} #{code} #{statusCode[code]}\r\n"
+	# protocole + ' ' + code + ' ' + statusCode[code]
+	date : null
+	server : null
+	contentType : "Content-Type: "  + if ext && !(newContentTypeMap[ext] is undefined) then "#{newContentTypeMap[ext]}\r\n" else "text/plain\r\n"
+	contentLength : if lengthFile then "Content-Length: #{lengthFile}\r\n" else "Content-Length: 0\r\n"
+	expires : null
+	lastModified : null
+	connection : "Connection: close\r\n"
+
+	toString :->
+		"#{@statusLine}#{@contentType}#{@contentLength}#{@connection}\r\n"
 
 
 
@@ -67,183 +132,95 @@ httpRequest =
 	Accept-Language: fr-FR,fr;q=0.8,en-US;q=0.6,en;q=0.4\r\n
 	"
 
-html =
-"<!DOCTYPE html>
-<html>
-<head>
-	<title>Webserver Test</title>
-	<meta charset='utf-8'>
-</head>
-<body>
-	Ceci est le body
-</body>
-</html>
-"
-
-REQUEST_LINE_REGEX = new RegExp "[GET|POST|HEAD][ ]([\/].*[ ]){0,1}HTTP\/1\.[0-9]"
-PARENT_DIRECTORY_REGEX = new RegExp "[\.]{2,}[\/].*"
-
-findContentTypeFile = (ext)->
-	if !(ext is null)
-		for i,tab of contentTypeMap
-			index = tab['tab'].indexOf ext
-			# console.log '>>>>>>>', i, tab, tab.indexOf ext
-			if index >= 0
-				return contentType =
-					'type' : i
-					'replace' : if tab['replace'] is undefined then ext else tab['replace']
-		return options =
-			'type' : 'text'
-			'replace' : null
-
-		return options =
-			'type' : 'text'
-			'replace' : null
-
-# console.log contentTypeMap
-# for i,tab of contentTypeMap
-# 	console.log '>>>>>>>', i, tab
-
-
-extractRequestLine = (data)->
-
-	array =  (data.split "\r\n")[0]
-	console.log 'array', array
-	if REQUEST_LINE_REGEX.test array
-		# console.log 'array', array
-		# JSON.stringify()
-		requestLineArray = array.split(' ')
-		console.log requestLineArray.toString()
-		requestLineJSON =
-			"method" : requestLineArray[0]
-			"path" : requestLineArray[1] = if requestLineArray[1] == '/' || requestLineArray[1] == null || requestLineArray[1] == '' then 'index.html' else requestLineArray[1]
-			"protocol" : requestLineArray[2]
-		return requestLineJSON
-	return null
-
-isNotEmpty = (element)->
-
-	return !(element is '')
-
-dataToArray = (data)->
-
-	array =  data.toString().split "\r\n"
-	array = array.filter isNotEmpty	# console.log 'array',array
-	for i in [0..array.length-1]
-		array[i] = array[i].split " "
-	return array
-
-createResponseHeader = (protocole, ext, code, lengthFile) ->
-	statusLine  : "#{protocole} #{code} #{statusCode[code]}\r\n"
-	# protocole + ' ' + code + ' ' + statusCode[code]
-	contentType : "Content-Type: #{newContentTypeMap[ext]}\r\n"
-	contentLength : if lengthFile then "Content-Length: #{lengthFile}\r\n" else "Content-Length: 0\r\n"
-	connection : "Connection: close\r\n"
-
-	toString : -> 
-		"#{@statusLine}#{@contentType}#{@contentLength}#{@connection}\r\n"
-
-constructHeader = (protocole, ext, code, lengthFile) ->
-
-	contentType = findContentTypeFile ext
-	# console.log 'contentType',
-	contentSubType = if contentType['replace'] is null then 'plain' else contentType['replace']
-	#  console.log 'contenType', contentType, ext
-	contentLength = if lengthFile then "Content-Length:" + lengthFile+ "\r\n" else ""
-	contentExt = if ext then "Content-Type:" + contentType['type'] + '/' + contentSubType + "\r\n" else "\r\n"
-	protocole+ " " + code + " " +  statusCode[code] + "\r\n" + contentExt + contentLength + "Connection: close"+ "\r\n"+ "\r\n"
-
-# replaceExtension = (options)->
-# 	if options['type']#['replace'] is undefined
-# 		console.log 'replace is undefined'
-
-# arrayContains = (array, data)->
-# 	for value in array
-# 		if value is data
-# 			return true
-# 	false
-
 # TEST
 
-# console.log ["A", "B", "C"].indexOf("A")
-# fileTest = "index.jpg"
-# ext = path.extname fileTest
-# ext = if ext.match (new RegExp ('[\.].*')) then ext.substring 1,ext.length else null
-# console.log 'ext', ext
+# console.log newContentTypeMap
+# requestLineHeader = extractRequestLine httpRequest
+# console.log requestLineHeader
+# if requestLineHeader
+# 	absolutePath = path.join(root , requestLineHeader['path'])
+# 	tempExtension = (path.extname absolutePath.toLowerCase()).replace '.', ''
+	# tempExtension = if tempExtension is '' then null else tempExtension
+# 	if extension is ''
+# 		console.log 'extension est une chaine vide xD'
+# 	else
+# 		console.log requestLineHeader['path'], 'extension', extension
+# 	stats = fs.statSync absolutePath
+# 	console.log stats.isDirectory()
+# 	header = createResponseHeader requestLineHeader['protocol'],403,extension
+# 	console.log  header
+# else
+# 	header = createResponseHeader DEFAULT_PROTOCOL,400
+# console.log '<< headerResponse >>\n' +  header.toString()
+# console.log (errorHtml 400).toString()
+# string = "GET /images HTTP/1.0"
+# console.log 'match', string.match FIRST_LINE_REGEX
+# console.log 'search', string.search FIRST_LINE_REGEX
+# console.log 'test', FIRST_LINE_REGEX.test string
+# console.log 'exec', FIRST_LINE_REGEX.exec string
 
+# console.log newContentTypeMap['.map']
 
-
-# console.log 'options', contentTypeFile ext
-
-
-# string = "test/../index.html"
-# console.log 'match', simpleHeader.match REQUESTLINEREGEX
-# console.log 'search', simpleHeader.search REQUESTLINEREGEX
-# console.log 'test', REQUESTLINEREGEX.test simpleHeader
-# console.log 'exec', REQUESTLINEREGEX.exec simpleHeader
-
-# console.log FindContentTypeFile 'mp3',
-
-requestLineHeaderJSON = extractRequestLine httpRequest
-console.log 'firstLineHeaderJSON', requestLineHeaderJSON
-chemin = requestLineHeaderJSON['path']
-console.log 'path : ', chemin
-extension = (path.extname chemin.toLowerCase()).replace '.', ''
-contentType = findContentTypeFile extension
-header = constructHeader requestLineHeaderJSON['protocol'],extension,"200"
-console.log 'headerResponse ', header
-
-# console.log 'options', options = FindContentTypeFile 'js'
-console.log newContentTypeMap
-console.log (createResponseHeader "HTTP/1.0" , 'html', 200).toString()
-
+# for index, value of newContentTypeMap
+# 	(stat = ->
+# 		console.log index,value
+# 	)()
 server = net.createServer options, (socket)->
 
 	socket.on 'connection',connectionSocket = ->
+
 		console.log 'socket : connection' + socket.remoteAddress +':'+ socket.remotePort + "\n"
 	socket.on 'connect',connectSocket = ->
+
 		console.log 'socket : connect'
 	socket.on 'data' , dataSocket = (data)->
-			requestLineHeaderJSON = extractRequestLine data
-			chemin = requestLineHeaderJSON['path']
-			console.log 'chemin', chemin
-			if !PARENT_DIRECTORY_REGEX.test chemin #&& REQUEST_LINE_REGEX.test chemin
-				# console.log 'chemin.match',!PARENTDIRECTORYREGEX.test chemin
-				absolutePath = path.join(root , chemin)
-				# console.log 'filePath', filePath
-				extension = (path.extname absolutePath.toLowerCase()).replace '.', ''
-				# console.log 'search ', filePath, extension
-				tempExtension = extension
-				fs.stat absolutePath, (err,stats)->
-					if err
-						headerResponse = constructHeader requestLineHeaderJSON['protocol'],tempExtension, 404
-						console.log 'err',err
-						
 
-					else if stats.isFile()
-						headerResponse = constructHeader requestLineHeaderJSON['protocol'],tempExtension, 200, stats["size"]
-						readStream = fs.createReadStream(absolutePath)
-					else if stats.isDirectory()
+		requestLineHeader = extractRequestLine data
+		console.log  'data', data
+		console.log 'requestLineHeader', requestLineHeader
+		if requestLineHeader #&& !PARENT_DIRECTORY_REGEX.test requestLineHeader['path']
+			absolutePath = path.join(root , requestLineHeader['path'])
+			extension = (path.extname absolutePath.toLowerCase())
+			fs.stat absolutePath, (err,stats)->
+				codeError = null
+				tempStats = stats
+				taille = null
+				if err
+					codeError = 404
+				else if PARENT_DIRECTORY_REGEX.test requestLineHeader['path']
+					codeError = 403
+				else if stats.isFile()
+					headerResponse = createResponseHeader requestLineHeader['protocol'], 200,extension, tempStats["size"]
+					readStream = fs.createReadStream(absolutePath)
+					# socket.write headerResponse.toString()
+				else if stats.isDirectory()
+					codeError = 403
 
-						# A CONTINUER SuiVANT LES CAS
-						headerResponse = constructHeader requestLineHeaderJSON['protocol'],tempExtension, 403
-						console.log headerResponse
-						socket.write errorHtml
-						socket.end()
-
-
-					# console.log 'headerResponse',chemin,headerResponse
-					socket.write headerResponse
-					# console.log headerResponse
-					if readStream
-						readStream.on 'open', ->
-							# console.log 'readStream ouvert'
-							# console.log requestLineHeaderJSON['method'].toUpperCase(),requestLineHeaderJSON['method'].toUpperCase() is 'GET' || requestLineHeaderJSON['method'].toUpperCase() is 'POST'
-							if (requestLineHeaderJSON['method'].toUpperCase() is 'GET') || (requestLineHeaderJSON['method'].toUpperCase() is 'POST')
+				if codeError
+					headerResponse = createResponseHeader requestLineHeader['protocol'], codeError, DEFAULT_EXTENSION,Buffer.byteLength((errorHtml codeError).toString(), 'utf8')
+					socket.write headerResponse.toString(),->
+						socket.write (errorHtml codeError).toString() + '\n'
+				console.log '>>>>> \n'
+				console.log '\n',requestLineHeader['path'], 'extension', extension
+				console.log headerResponse.toString()
+				if readStream
+					readStream.on 'open', ->
+						if (requestLineHeader['method'].toUpperCase() is 'GET') || (requestLineHeader['method'].toUpperCase() is 'POST')
+							socket.write headerResponse.toString(),->
 								readStream.pipe socket
-							# readStream.close()
-						readStream.on 'close', ->
-							# console.log 'readStream close'
+						# else
+						# 	socket.end()
+					readStream.on 'close', ->
+						console.log 'readStream close'
+
+		else
+			headerResponse = createResponseHeader DEFAULT_PROTOCOL, 400
+			console.log 'headerResponse error', headerResponse.toString()
+			# console.log errorHtml 400
+			# socket.write (errorHtml 400).toString() + '\n'
+			socket.write headerResponse.toString()
+
+
 
 	socket.on 'error',errorSocket = ->
 		# console.log 'socket : error'
