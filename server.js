@@ -96,12 +96,12 @@
   createResponseHeader = function(protocole, code, ext, lengthFile) {
     return {
       statusLine: protocole + " " + code + " " + statusCode[code] + "\r\n",
-      date: null,
-      server: null,
+      date: '',
+      server: '',
       contentType: "Content-Type: " + (ext && newContentTypeMap[ext] ? newContentTypeMap[ext] + "\r\n" : "text/plain\r\n"),
       contentLength: lengthFile ? "Content-Length: " + lengthFile + "\r\n" : "Content-Length: 0\r\n",
-      expires: null,
-      lastModified: null,
+      expires: '',
+      lastModified: '',
       connection: "Connection: close\r\n",
       toString: function() {
         return "" + this.statusLine + this.date + this.contentType + this.contentLength + this.connection + "\r\n";
@@ -121,7 +121,6 @@
     return socket.on('data', function(data) {
       var absolutePath, extension, headerResponse, requestLineHeader;
       requestLineHeader = extractStatusLine(data);
-      console.log(requestLineHeader);
       if (requestLineHeader) {
         absolutePath = path.join(ROOT, requestLineHeader['path']);
         extension = path.extname(absolutePath.toLowerCase());
@@ -133,22 +132,27 @@
           } else if (PARENT_DIRECTORY_REGEX.test(requestLineHeader['path'] || stats.isDirectory())) {
             codeError = 403;
           } else if (stats.isFile()) {
-            headerResponse = createResponseHeader(requestLineHeader['protocol'], 200, extension, stats["size"]);
+            headerResponse = createResponseHeader(DEFAULT_PROTOCOL, 200, extension, stats["size"]);
             readStream = fs.createReadStream(absolutePath);
           }
           if (codeError) {
-            headerResponse = createResponseHeader(requestLineHeader['protocol'], codeError, DEFAULT_EXTENSION, Buffer.byteLength((errorHtml(codeError)).toString(), 'utf8'));
+            headerResponse = createResponseHeader(DEFAULT_PROTOCOL, codeError, DEFAULT_EXTENSION, Buffer.byteLength((errorHtml(codeError)).toString(), 'utf8'));
             socket.write(headerResponse.toString(), function() {
               return socket.write((errorHtml(codeError)).toString() + '\n');
             });
           }
           if (readStream) {
-            return readStream.on('open', function() {
+            readStream.on('open', function() {
               if ((requestLineHeader['method'].toUpperCase() === 'GET') || (requestLineHeader['method'].toUpperCase() === 'POST')) {
                 return socket.write(headerResponse.toString(), function() {
                   return readStream.pipe(socket);
                 });
+              } else {
+                return socket.write(headerResponse.toString());
               }
+            });
+            return readStream.on('end', function() {
+              return socket.end();
             });
           }
         });

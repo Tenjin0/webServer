@@ -44,7 +44,6 @@ contentTypeMap =
 
 	'audio' :
 		tab : ['.mp3']
-
 	'text' :
 		tab :['.html','.css']
 
@@ -88,12 +87,12 @@ extractStatusLine = (data)->
 
 createResponseHeader = (protocole, code, ext, lengthFile) ->
 	statusLine  : "#{protocole} #{code} #{statusCode[code]}\r\n"
-	date : null
-	server : null
+	date : ''
+	server : ''
 	contentType : "Content-Type: "  + if ext && newContentTypeMap[ext] then "#{newContentTypeMap[ext]}\r\n" else "text/plain\r\n"
 	contentLength : if lengthFile then "Content-Length: #{lengthFile}\r\n" else "Content-Length: 0\r\n"
-	expires : null
-	lastModified : null
+	expires : ''
+	lastModified : ''
 	connection : "Connection: close\r\n"
 
 	toString :->
@@ -114,7 +113,6 @@ server = net.createServer ServerOptions, (socket)->
 	socket.on 'data' ,(data)->
 
 		requestLineHeader = extractStatusLine data
-		console.log requestLineHeader
 		if requestLineHeader #&& !PARENT_DIRECTORY_REGEX.test requestLineHeader['path']
 			absolutePath = path.join(ROOT , requestLineHeader['path'])
 			extension = (path.extname absolutePath.toLowerCase())
@@ -125,13 +123,12 @@ server = net.createServer ServerOptions, (socket)->
 				else if PARENT_DIRECTORY_REGEX.test requestLineHeader['path'] || stats.isDirectory()
 					codeError = 403
 				else if stats.isFile()
-					headerResponse = createResponseHeader requestLineHeader['protocol'], 200,extension, stats["size"]
+					headerResponse = createResponseHeader DEFAULT_PROTOCOL, 200,extension, stats["size"]
 					readStream = fs.createReadStream absolutePath
-				# else if stats.isDirectory()
-				# 	codeError = 403
 
 				if codeError
-					headerResponse = createResponseHeader requestLineHeader['protocol'], codeError, DEFAULT_EXTENSION,Buffer.byteLength((errorHtml codeError).toString(), 'utf8')
+					headerResponse = createResponseHeader DEFAULT_PROTOCOL, codeError, DEFAULT_EXTENSION,Buffer.byteLength((errorHtml codeError).toString(), 'utf8')
+
 					socket.write headerResponse.toString(),->
 						socket.write (errorHtml codeError).toString() + '\n'
 
@@ -140,15 +137,12 @@ server = net.createServer ServerOptions, (socket)->
 						if (requestLineHeader['method'].toUpperCase() is 'GET') || (requestLineHeader['method'].toUpperCase() is 'POST')
 							socket.write headerResponse.toString(),->
 								readStream.pipe socket
-
+						else
+							socket.write headerResponse.toString()
+					readStream.on 'end', ->
+						socket.end()
 		else
 			headerResponse = createResponseHeader DEFAULT_PROTOCOL, 400
-			# console.log 'headerResponse error', headerResponse.toString()
 			socket.write headerResponse.toString()
-
-	# socket.on 'error', ->
-	# 	console.log 'socket : error'
-	# socket.on 'close', ->
-	# 	console.log 'socket : close'
 
 server.listen 9000,'localhost'
