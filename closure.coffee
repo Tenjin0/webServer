@@ -80,10 +80,17 @@ stats = fs.statSync("./min1.html")
 
 # dataSize = Buffer.byteLength(file, 'utf8')
 dataSize = stats["size"]
-console.log dataSize
+# console.log dataSize
 file.on 'readable', ->
 	console.log 'readable : fire! !! !!!!'
 	data = file.read(dataSize)
 	if data
 		console.log('readable size = ', data.length)
 		console.log(data.toString())
+
+i = '_statusLine'
+if i.substring 0,1 is "_"
+	console.log tempI = ''
+else
+	console.log tempI = i
+console.log tempI, i.substring(0,1) is '_'
