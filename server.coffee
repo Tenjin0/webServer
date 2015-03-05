@@ -4,7 +4,9 @@ net = require 'net'
 path = require 'path'
 
 # CONSTANTTE
-ROOT = __dirname + '/webroot'
+obj = JSON.parse(fs.readFileSync('conf/local.json', 'utf8'))
+ROOT = path.join( __dirname , obj.contentFolderPath)
+console.log  ROOT
 DEFAULT_PROTOCOL = 'HTTP/1.0'
 DEFAULT_EXTENSION = '.html'
 
@@ -60,36 +62,33 @@ createErrorHtml = (code) ->
 "
 
 
-extractStatusLine = (data)->
+parseStatusLine = (data)->
 
 	firstLine =  (data.toString().split "\r\n")[0]
 	if FIRST_LINE_REGEX.test firstLine
 		requestLineArray = firstLine.split " "
 		requestLineJSON =
-			"method" : requestLineArray[0] # firstLine.substring 0,indexOf(' ')
-			"path" : if requestLineArray[1] == '/' then 'index.html' else requestLineArray[1]
-			"protocol" : requestLineArray[2]
-		return requestLineJSON
-	return null
+			method : requestLineArray[0] # firstLine.substring 0,indexOf(' ')
+			path : if path.normalize(requestLineArray[1]) is '/' then 'index.html' else requestLineArray[1]
+			protocol : requestLineArray[2]
+
+		requestLineJSON
+	else
+		null
 
 
 createResponseHeader = ( code, ext, fileLength) ->
-	responseHeader = {}
-	responseHeader["_statusLine"] = "#{DEFAULT_PROTOCOL} #{code} #{statusMessages[code]}"
-	responseHeader['content-Type'] = if ext && contentTypeMap[ext] then contentTypeMap[ext] else 'text/plain'
-	if fileLength
-		responseHeader['Content-Length'] = fileLength
-	else
-		responseHeader['Content-Length'] = 0
-	responseHeader['Connection'] = 'close'
+	responseHeader =
+		statusLine : "#{DEFAULT_PROTOCOL} #{code} #{statusMessages[code]}"
+		fields :
+			'content-Type' : if ext && contentTypeMap[ext] then contentTypeMap[ext] else 'text/plain'
+			'Content-Length' : fileLength ? 0
+			'Connection' : 'close'
 
 	toString : ->
-		str = ""
-		for i,v of responseHeader
-			if (i.substring 0,1) is '_'
-				str += v + "\r\n"
-			else
-				str += i + ': ' + v + "\r\n"
+		str = "#{responseHeader['statusLine']}\r\n"
+		for i,v of responseHeader['fields']
+			str += i + ': ' + v + "\r\n"
 		str + '\r\n'
 
 sendResponse = (socket, header, statusCode,readStream) ->
@@ -109,15 +108,17 @@ ServerOptions =
 server = net.createServer ServerOptions, (socket)->
 
 	socket.on 'connection', ->
-
 		console.log 'socket : connect'
+
 	socket.on 'data' ,(data)->
 		statusCode = 400
-		requestLineHeader = extractStatusLine data
-		if requestLineHeader # && !PARENT_DIRECTORY_REGEX.test requestLineHeader['path']
-			absolutePath = path.join(ROOT , requestLineHeader['path'])
-			console.log absolutePath
+		statusLine = parseStatusLine data
+		if statusLine
+			# remove unnecessary ../
+			absolutePath = path.join(ROOT , statusLine['path'])
+			# console.log absolutePath
 			extension = path.extname absolutePath.toLowerCase()
+
 			fs.stat absolutePath, (err,stats)->
 				if err
 					statusCode = 404
@@ -131,14 +132,13 @@ server = net.createServer ServerOptions, (socket)->
 						socket.end()
 
 				if !fileSize
+					extension = DEFAULT_EXTENSION
 					fileSize = Buffer.byteLength((createErrorHtml statusCode)['body'], 'utf8')
 
 				# Create responseHeader
 				responseHeader = createResponseHeader statusCode, extension,fileSize
-
 				# Send the response (header + body)
 				sendResponse socket, responseHeader, statusCode, readStream
-
 		else
 			responseHeader = createResponseHeader statusCode
 			sendResponse socket, responseHeader, statusCode
