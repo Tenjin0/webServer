@@ -2,21 +2,21 @@
 fs = require 'fs'
 net = require 'net'
 path = require 'path'
+# CONSTANTES
+conf = JSON.parse(fs.readFileSync('conf/local.json'
+	, 'utf8'))
 
-# CONSTANTTE
-obj = JSON.parse(fs.readFileSync('conf/local.json', 'utf8'))
-ROOT = path.join( __dirname , obj.contentFolderPath)
-console.log  ROOT
+ROOT = path.join( __dirname , conf.contentFolderPath)
+
 DEFAULT_PROTOCOL = 'HTTP/1.0'
 DEFAULT_EXTENSION = '.html'
 
-# REGEX
+# REGEXS
 FIRST_LINE_REGEX = new RegExp "(GET|POST|HEAD)[ ]([\/].*[ ]){1,}HTTP\/1\.[0-9]"
 AUTHORIZED_PATH = new RegExp "#{ROOT}.*"
 METHOD_REGEX  = new RegExp "(GET|POST|HEAD)"
 
-
-# DATA
+# DATAS
 statusMessages =
 	200 : "OK"
 	201 : "Created"
@@ -27,7 +27,7 @@ statusMessages =
 	304 : "Not Modified"
 	400 : "Bad Request"
 	401 : "Unauthorized"
-	403 : "Forbidden"
+	403 : "Forbidden Acces"
 	404 : "Not Found"
 	500 : "Internal Server Error"
 	501 : "Not Implemented"
@@ -46,8 +46,7 @@ contentTypeMap =
 	'.html': 'text/html',
 	'.css': 'text/css'
 
-
-# OBJET AND FUNCTION
+# OBJETS AND FUNCTIONS
 createErrorHtml = (code) ->
 	body : "<!DOCTYPE html>
 <html>
@@ -58,10 +57,17 @@ createErrorHtml = (code) ->
 <body>
 	<H2>#{code} #{statusMessages[code]}</H2>
 </body>
-</html>
+</html>\n
 "
 
-
+createAbsolutePath = (relativePath)->
+	stats = fs.statSync path.join ROOT,relativePath
+	if stats.isDirectory()
+		temp = path.join ROOT, relativePath, 'index.html'
+	else
+		temp = path.join ROOT, relativePath
+	console.log relativePath, temp
+	temp
 parseStatusLine = (data)->
 
 	firstLine =  (data.toString().split "\r\n")[0]
@@ -69,19 +75,19 @@ parseStatusLine = (data)->
 		requestLineArray = firstLine.split " "
 		requestLineJSON =
 			method : requestLineArray[0] # firstLine.substring 0,indexOf(' ')
-			path : if path.normalize(requestLineArray[1]) is '/' then 'index.html' else requestLineArray[1]
+			path : createAbsolutePath requestLineArray[1]
 			protocol : requestLineArray[2]
 
 		requestLineJSON
 	else
 		null
 
-
 createResponseHeader = ( code, ext, fileLength) ->
 	responseHeader =
 		statusLine : "#{DEFAULT_PROTOCOL} #{code} #{statusMessages[code]}"
 		fields :
-			'content-Type' : if ext && contentTypeMap[ext] then contentTypeMap[ext] else 'text/plain'
+			'content-Type' : contentTypeMap[ext] ? 'text/plain'
+			'Date' : new Date()
 			'Content-Length' : fileLength ? 0
 			'Connection' : 'close'
 
@@ -96,8 +102,8 @@ sendResponse = (socket, header, statusCode,readStream) ->
 		if readStream
 			readStream.pipe socket
 		else
-			socket.write (createErrorHtml statusCode)['body']+ '\n'
-			socket.end()
+			socket.end((createErrorHtml statusCode)['body'])
+
 
 # Options for the server
 ServerOptions =
@@ -107,27 +113,20 @@ ServerOptions =
 # SERVER
 server = net.createServer ServerOptions, (socket)->
 
-	socket.on 'connection', ->
-		console.log 'socket : connect'
-
 	socket.on 'data' ,(data)->
 		statusCode = 400
 		statusLine = parseStatusLine data
 		if statusLine
-			# remove unnecessary ../
-			absolutePath = path.join(ROOT , statusLine['path'])
-			# console.log absolutePath
-			extension = path.extname absolutePath.toLowerCase()
-
-			fs.stat absolutePath, (err,stats)->
+			extension = path.extname statusLine['path'].toLowerCase()
+			fs.stat statusLine['path'], (err,stats)->
 				if err
 					statusCode = 404
-				else if stats.isDirectory() || !AUTHORIZED_PATH.test absolutePath
+				else if stats.isDirectory() || !AUTHORIZED_PATH.test statusLine['path']
 					statusCode = 403
 				else if stats.isFile()
 					statusCode = 200
 					fileSize = stats["size"]
-					readStream = fs.createReadStream absolutePath
+					readStream = fs.createReadStream statusLine['path']
 					readStream.on 'end', ->
 						socket.end()
 
@@ -137,6 +136,8 @@ server = net.createServer ServerOptions, (socket)->
 
 				# Create responseHeader
 				responseHeader = createResponseHeader statusCode, extension,fileSize
+				console.log statusLine['path']
+				console.log responseHeader.toString()
 				# Send the response (header + body)
 				sendResponse socket, responseHeader, statusCode, readStream
 		else
@@ -145,7 +146,7 @@ server = net.createServer ServerOptions, (socket)->
 
 		socket.on 'error',(err) ->
 			console.log 'socket: error',err
-		socket.on 'close', ->
+		# socket.on 'close', ->
 			# console.log 'socket: close'
 
 server.listen 9000,'localhost'

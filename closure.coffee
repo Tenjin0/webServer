@@ -21,7 +21,6 @@ statusCode =
 
 
 # for index, value of statusCode
-
 # 	(fn = (num, value )->
 # 		setTimeout (->
 # 			console.log num, value
@@ -42,12 +41,13 @@ statusCode =
 # process.nextTick (->
 # 	console.log 'this ' + this.foo + ' and that ' + that.foo
 # )
+
 errorTab = for index,value of statusCode
 	parseInt index
 # console.log  errorTab
+
 str = ''
 closure = []
-
 fn = ->
 	setTimeout ( ->
 		console.log str
@@ -66,31 +66,46 @@ run = ->
 create()
 # run()
 # fn()
+
 # (do (i) ->
 # 	console.log i) for i in [0..5]
 # ((do (msg) -> -> console.log msg) for i in [0..5])
+
 newTab = errorTab.map (value) ->
 	value * 2
 
 # console.log newTab
 
-
 file = fs.createReadStream('./min1.html')
 stats = fs.statSync("./min1.html")
 
 # dataSize = Buffer.byteLength(file, 'utf8')
-dataSize = stats["size"]
-# console.log dataSize
-file.on 'readable', ->
-	console.log 'readable : fire! !! !!!!'
-	data = file.read(dataSize)
-	if data
-		console.log('readable size = ', data.length)
-		console.log(data.toString())
+#dataSize = stats["size"]
+#file.on 're/adable', ->
+#	console.log 'readable : fire! !! !!!!'
+#	data = file.read(dataSize)
+#	if data
+#		console.log('readable size = ', data.length)
+#		console.log(data.toString())
 
-i = '_statusLine'
-if i.substring 0,1 is "_"
-	console.log tempI = ''
-else
-	console.log tempI = i
-console.log tempI, i.substring(0,1) is '_'
+# i = '_statusLine'
+# if i.substring 0,1 is "_"
+# 	console.log tempI = ''
+# else
+# 	console.log tempI = i
+# console.log tempI, i.substring(0,1) is '_'
+
+foo = 143
+( -> # create an anonymous function and a new context wuthout the outer variable
+	foo = 456 # coffee create a global variable instead of a local var
+)()
+console.log foo
+
+longRunningOperation = (callBack)->
+	setTimeout(callBack,3000)
+
+(userClicked =->
+	console.log 'etape 1'
+	longRunningOperation(console.log 'etape 2')
+	console.log 'etape 3'
+)()
