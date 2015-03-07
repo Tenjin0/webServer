@@ -59,31 +59,44 @@
     };
   };
 
-  createAbsolutePath = function(relativePath) {
-    var stats, temp;
-    stats = fs.statSync(path.join(ROOT, relativePath));
-    if (stats.isDirectory()) {
-      temp = path.join(ROOT, relativePath, 'index.html');
-    } else {
-      temp = path.join(ROOT, relativePath);
-    }
-    console.log(relativePath, temp);
-    return temp;
+  createAbsolutePath = function(relativePath, callback) {
+    return fs.stat(path.join(ROOT, relativePath), function(err, stats) {
+      console.log(err, stats);
+      if (err) {
+        return callback(null, err);
+      } else if (stats.isDirectory()) {
+        return fs.open(path.join(ROOT, relativePath, 'index.html'), 'r', function(err, fd) {
+          if (err) {
+            return callback(path.join(ROOT, relativePath), null);
+          } else {
+            return callback(path.join(ROOT, relativePath, 'index.html'), null);
+          }
+        });
+      } else {
+        return callback(path.join(ROOT, relativePath), null);
+      }
+    });
   };
 
-  parseStatusLine = function(data) {
-    var firstLine, requestLineArray, requestLineJSON;
+  parseStatusLine = function(data, callback) {
+    var firstLine, requestLineArray;
     firstLine = (data.toString().split("\r\n"))[0];
     if (FIRST_LINE_REGEX.test(firstLine)) {
       requestLineArray = firstLine.split(" ");
-      requestLineJSON = {
-        method: requestLineArray[0],
-        path: createAbsolutePath(requestLineArray[1]),
-        protocol: requestLineArray[2]
-      };
-      return requestLineJSON;
+      return createAbsolutePath(requestLineArray[1], function(path, err) {
+        var requestLineJSON;
+        if (path) {
+          return callback(requestLineJSON = {
+            'method': requestLineArray[0],
+            'path': path,
+            'protocol': requestLineArray[2]
+          });
+        } else {
+          return callback(null);
+        }
+      });
     } else {
-      return null;
+      return callback(null);
     }
   };
 
@@ -129,40 +142,43 @@
 
   server = net.createServer(ServerOptions, function(socket) {
     return socket.on('data', function(data) {
-      var extension, responseHeader, statusCode, statusLine;
+      var statusCode;
       statusCode = 400;
-      statusLine = parseStatusLine(data);
-      if (statusLine) {
-        extension = path.extname(statusLine['path'].toLowerCase());
-        fs.stat(statusLine['path'], function(err, stats) {
-          var fileSize, readStream, responseHeader;
-          if (err) {
-            statusCode = 404;
-          } else if (stats.isDirectory() || !AUTHORIZED_PATH.test(statusLine['path'])) {
-            statusCode = 403;
-          } else if (stats.isFile()) {
-            statusCode = 200;
-            fileSize = stats["size"];
-            readStream = fs.createReadStream(statusLine['path']);
-            readStream.on('end', function() {
-              return socket.end();
-            });
-          }
-          if (!fileSize) {
-            extension = DEFAULT_EXTENSION;
-            fileSize = Buffer.byteLength((createErrorHtml(statusCode))['body'], 'utf8');
-          }
-          responseHeader = createResponseHeader(statusCode, extension, fileSize);
-          console.log(statusLine['path']);
-          console.log(responseHeader.toString());
-          return sendResponse(socket, responseHeader, statusCode, readStream);
+      return parseStatusLine(data, function(statusLine, error) {
+        var extension, responseHeader;
+        console.log("statusLine", statusLine);
+        if (statusLine) {
+          extension = path.extname(statusLine['path'].toLowerCase());
+          fs.stat(statusLine['path'], function(err, stats) {
+            var fileSize, readStream, responseHeader;
+            if (err) {
+              statusCode = 404;
+            } else if (stats.isDirectory() || !AUTHORIZED_PATH.test(statusLine['path'])) {
+              statusCode = 403;
+            } else if (stats.isFile()) {
+              statusCode = 200;
+              fileSize = stats["size"];
+              readStream = fs.createReadStream(statusLine['path']);
+              readStream.on('end', function() {
+                return socket.end();
+              });
+            }
+            if (!fileSize) {
+              extension = DEFAULT_EXTENSION;
+              fileSize = Buffer.byteLength((createErrorHtml(statusCode))['body'], 'utf8');
+            }
+            responseHeader = createResponseHeader(statusCode, extension, fileSize);
+            console.log(statusLine['path']);
+            console.log(responseHeader.toString());
+            return sendResponse(socket, responseHeader, statusCode, readStream);
+          });
+        } else {
+          responseHeader = createResponseHeader(statusCode);
+          sendResponse(socket, responseHeader, statusCode);
+        }
+        return socket.on('error', function(err) {
+          return console.log('socket: error', err);
         });
-      } else {
-        responseHeader = createResponseHeader(statusCode);
-        sendResponse(socket, responseHeader, statusCode);
-      }
-      return socket.on('error', function(err) {
-        return console.log('socket: error', err);
       });
     });
   });

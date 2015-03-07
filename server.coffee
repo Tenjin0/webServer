@@ -60,27 +60,47 @@ createErrorHtml = (code) ->
 </html>\n
 "
 
-createAbsolutePath = (relativePath)->
-	stats = fs.statSync path.join ROOT,relativePath
-	if stats.isDirectory()
-		temp = path.join ROOT, relativePath, 'index.html'
-	else
-		temp = path.join ROOT, relativePath
-	console.log relativePath, temp
-	temp
-parseStatusLine = (data)->
+createAbsolutePath = (relativePath,callback)->
+
+	fs.stat (path.join ROOT,relativePath), (err,stats)->
+		console.log err,stats
+		if err
+			callback(null,err)
+		else if stats.isDirectory()
+			fs.open (path.join ROOT, relativePath, 'index.html'),'r' ,(err,fd)-> 
+				if err
+					callback (path.join ROOT, relativePath),null
+				else
+					callback (path.join ROOT, relativePath, 'index.html'),null
+		else
+			callback (path.join ROOT,relativePath),null
+	# try
+	# 	stats = fs.statSync path.join ROOT,relativePath	
+	# 	if stats.isDirectory() && fs.existsSync (path.join ROOT, relativePath, 'index.html')
+	# 		temp = path.join ROOT, relativePath, 'index.html'
+	# 	else
+	# 		temp = path.join ROOT, relativePathac
+	# 	console.log relativePath, temp
+	# catch error 
+	# 	temp = path.join ROOT, relativePath
+	# temp
+
+parseStatusLine = (data,callback)->
 
 	firstLine =  (data.toString().split "\r\n")[0]
 	if FIRST_LINE_REGEX.test firstLine
 		requestLineArray = firstLine.split " "
-		requestLineJSON =
-			method : requestLineArray[0] # firstLine.substring 0,indexOf(' ')
-			path : createAbsolutePath requestLineArray[1]
-			protocol : requestLineArray[2]
-
-		requestLineJSON
+		createAbsolutePath requestLineArray[1],(path,err)->
+			if path
+				callback requestLineJSON =
+					'method' : requestLineArray[0] # firstLine.substring 0,indexOf(' ')
+					'path' : path
+					'protocol' : requestLineArray[2]
+			else
+				callback null
 	else
-		null
+		callback null
+
 
 createResponseHeader = ( code, ext, fileLength) ->
 	responseHeader =
@@ -115,38 +135,39 @@ server = net.createServer ServerOptions, (socket)->
 
 	socket.on 'data' ,(data)->
 		statusCode = 400
-		statusLine = parseStatusLine data
-		if statusLine
-			extension = path.extname statusLine['path'].toLowerCase()
-			fs.stat statusLine['path'], (err,stats)->
-				if err
-					statusCode = 404
-				else if stats.isDirectory() || !AUTHORIZED_PATH.test statusLine['path']
-					statusCode = 403
-				else if stats.isFile()
-					statusCode = 200
-					fileSize = stats["size"]
-					readStream = fs.createReadStream statusLine['path']
-					readStream.on 'end', ->
-						socket.end()
+		parseStatusLine data,(statusLine,error) ->
+			console.log "statusLine", statusLine
+			if statusLine
+				extension = path.extname statusLine['path'].toLowerCase()
+				fs.stat statusLine['path'], (err,stats)->
+					if err
+						statusCode = 404
+					else if stats.isDirectory() || !AUTHORIZED_PATH.test statusLine['path']
+						statusCode = 403
+					else if stats.isFile()
+						statusCode = 200
+						fileSize = stats["size"]
+						readStream = fs.createReadStream statusLine['path']
+						readStream.on 'end', ->
+							socket.end()
 
-				if !fileSize
-					extension = DEFAULT_EXTENSION
-					fileSize = Buffer.byteLength((createErrorHtml statusCode)['body'], 'utf8')
+					if !fileSize
+						extension = DEFAULT_EXTENSION
+						fileSize = Buffer.byteLength((createErrorHtml statusCode)['body'], 'utf8')
 
-				# Create responseHeader
-				responseHeader = createResponseHeader statusCode, extension,fileSize
-				console.log statusLine['path']
-				console.log responseHeader.toString()
-				# Send the response (header + body)
-				sendResponse socket, responseHeader, statusCode, readStream
-		else
-			responseHeader = createResponseHeader statusCode
-			sendResponse socket, responseHeader, statusCode
+					# Create responseHeader
+					responseHeader = createResponseHeader statusCode, extension,fileSize
+					console.log statusLine['path']
+					console.log responseHeader.toString()
+					# Send the response (header + body)
+					sendResponse socket, responseHeader, statusCode, readStream
+			else
+				responseHeader = createResponseHeader statusCode
+				sendResponse socket, responseHeader, statusCode
 
-		socket.on 'error',(err) ->
-			console.log 'socket: error',err
-		# socket.on 'close', ->
-			# console.log 'socket: close'
+			socket.on 'error',(err) ->
+				console.log 'socket: error',err
+			# socket.on 'close', ->
+				# console.log 'socket: close'
 
 server.listen 9000,'localhost'
