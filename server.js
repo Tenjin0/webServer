@@ -60,15 +60,21 @@
   };
 
   createAbsolutePath = function(relativePath) {
-    var stats, temp;
-    stats = fs.statSync(path.join(ROOT, relativePath));
-    if (stats.isDirectory()) {
-      temp = path.join(ROOT, relativePath, 'index.html');
-    } else {
-      temp = path.join(ROOT, relativePath);
+    var err, stats, temp;
+    try {
+      stats = fs.statSync(path.join(ROOT, relativePath));
+      if (stats.isDirectory() && fs.existsSync(path.join(ROOT, relativePath, 'index.html'))) {
+        temp = path.join(ROOT, relativePath, 'index.html');
+      } else {
+        temp = path.join(ROOT, relativePath);
+      }
+      console.log(relativePath, temp);
+      return temp;
+    } catch (_error) {
+      err = _error;
+      console.log(err);
+      return path.join(ROOT, relativePath);
     }
-    console.log(relativePath, temp);
-    return temp;
   };
 
   parseStatusLine = function(data) {

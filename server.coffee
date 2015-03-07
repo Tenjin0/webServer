@@ -61,13 +61,18 @@ createErrorHtml = (code) ->
 "
 
 createAbsolutePath = (relativePath)->
-	stats = fs.statSync path.join ROOT,relativePath
-	if stats.isDirectory()
-		temp = path.join ROOT, relativePath, 'index.html'
-	else
-		temp = path.join ROOT, relativePath
-	console.log relativePath, temp
-	temp
+	try
+		stats = fs.statSync(path.join ROOT,relativePath)
+		if stats.isDirectory() && fs.existsSync(path.join ROOT, relativePath, 'index.html')
+			temp = path.join ROOT, relativePath, 'index.html'
+		else
+			temp = path.join ROOT, relativePath
+		console.log relativePath, temp
+		temp
+	catch err
+		console.log err
+		path.join ROOT,relativePath
+
 parseStatusLine = (data)->
 
 	firstLine =  (data.toString().split "\r\n")[0]
