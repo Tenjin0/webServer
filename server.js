@@ -55,25 +55,30 @@
 
   createErrorHtml = function(code) {
     return {
-      body: "<!DOCTYPE html> <html> <head> <title>Webserver Test</title> <meta charset='utf-8'> </head> <body> <H2>" + code + " " + statusMessages[code] + "</H2> </body> </html>\n"
+      body: "<!DOCTYPE html> <html> <head> <title>Webserver Test</title> <meta charset='utf-8'> </head> <body> <H2>" + code + " " + statusMessages[code] + "</H2> </body> </html>\n",
+      length: Buffer.byteLength(this.body, 'utf8')
     };
   };
 
   createAbsolutePath = function(relativePath, callback) {
     return fs.stat(path.join(ROOT, relativePath), function(err, stats) {
-      console.log(err, stats);
       if (err) {
-        return callback(null, err);
-      } else if (stats.isDirectory()) {
-        return fs.open(path.join(ROOT, relativePath, 'index.html'), 'r', function(err, fd) {
-          if (err) {
-            return callback(path.join(ROOT, relativePath), null);
-          } else {
-            return callback(path.join(ROOT, relativePath, 'index.html'), null);
-          }
-        });
+        return callback(null, 404, createErrorHtml(404)['Length']);
+      } else if (AUTHORIZED_PATH.test(path.join(ROOT, relativePath))) {
+        if (stats.isDirectory()) {
+          return fs.stat(path.join(ROOT, relativePath, 'index.html'), function(err, stats2) {
+            console.log(!AUTHORIZED_PATH.test(path.join(ROOT, relativePath, 'index.html')));
+            if (err) {
+              return callback(path.join(ROOT, relativePath), 403, createErrorHtml(403)['Length']);
+            } else {
+              return callback(path.join(ROOT, relativePath, 'index.html'), 200, stats2["size"]);
+            }
+          });
+        } else {
+          return callback(path.join(ROOT, relativePath), 200, stats["size"]);
+        }
       } else {
-        return callback(path.join(ROOT, relativePath), null);
+        return callback(path.join(ROOT, relativePath), 403, createErrorHtml(403)['Length']);
       }
     });
   };
@@ -83,20 +88,20 @@
     firstLine = (data.toString().split("\r\n"))[0];
     if (FIRST_LINE_REGEX.test(firstLine)) {
       requestLineArray = firstLine.split(" ");
-      return createAbsolutePath(requestLineArray[1], function(path, err) {
+      return createAbsolutePath(requestLineArray[1], function(path, err, fileLength) {
         var requestLineJSON;
         if (path) {
-          return callback(requestLineJSON = {
+          return callback((requestLineJSON = {
             'method': requestLineArray[0],
             'path': path,
             'protocol': requestLineArray[2]
-          });
+          }), err, fileLength);
         } else {
-          return callback(null);
+          return callback(null, err, fileLength);
         }
       });
     } else {
-      return callback(null);
+      return callback(null, 404, fileLength);
     }
   };
 
@@ -141,45 +146,26 @@
   };
 
   server = net.createServer(ServerOptions, function(socket) {
-    return socket.on('data', function(data) {
-      var statusCode;
-      statusCode = 400;
-      return parseStatusLine(data, function(statusLine, error) {
-        var extension, responseHeader;
-        console.log("statusLine", statusLine);
+    socket.on('data', function(data) {
+      return parseStatusLine(data, function(statusLine, statusCode, fileSize) {
+        var extension, readStream, responseHeader;
+        extension = DEFAULT_EXTENSION;
         if (statusLine) {
-          extension = path.extname(statusLine['path'].toLowerCase());
-          fs.stat(statusLine['path'], function(err, stats) {
-            var fileSize, readStream, responseHeader;
-            if (err) {
-              statusCode = 404;
-            } else if (stats.isDirectory() || !AUTHORIZED_PATH.test(statusLine['path'])) {
-              statusCode = 403;
-            } else if (stats.isFile()) {
-              statusCode = 200;
-              fileSize = stats["size"];
-              readStream = fs.createReadStream(statusLine['path']);
-              readStream.on('end', function() {
-                return socket.end();
-              });
-            }
-            if (!fileSize) {
-              extension = DEFAULT_EXTENSION;
-              fileSize = Buffer.byteLength((createErrorHtml(statusCode))['body'], 'utf8');
-            }
-            responseHeader = createResponseHeader(statusCode, extension, fileSize);
-            console.log(statusLine['path']);
-            console.log(responseHeader.toString());
-            return sendResponse(socket, responseHeader, statusCode, readStream);
-          });
-        } else {
-          responseHeader = createResponseHeader(statusCode);
-          sendResponse(socket, responseHeader, statusCode);
+          if (statusCode === 200) {
+            extension = path.extname(statusLine['path'].toLowerCase());
+            readStream = fs.createReadStream(statusLine['path']);
+            readStream.on('end', function() {
+              return socket.end();
+            });
+          }
         }
-        return socket.on('error', function(err) {
-          return console.log('socket: error', err);
-        });
+        responseHeader = createResponseHeader(statusCode, extension, fileSize);
+        console.log(responseHeader.toString());
+        return sendResponse(socket, responseHeader, statusCode, readStream);
       });
+    });
+    return socket.on('error', function(err) {
+      return console.log('socket: error', err);
     });
   });
 
