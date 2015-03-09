@@ -15,7 +15,10 @@ DEFAULT_EXTENSION = '.html'
 FIRST_LINE_REGEX = new RegExp "(GET|POST|HEAD)[ ]([\/].*[ ]){1,}HTTP\/1\.[0-9]"
 AUTHORIZED_PATH = new RegExp "#{ROOT}.*"
 METHOD_REGEX  = new RegExp "(GET|POST|HEAD)"
-
+host = "Host"
+referer = "Referer"
+REQUEST_HOST_REGEX = new RegExp "#{host}: "
+REQUEST_REF_REGEX = new RegExp "#{referer}: "
 # DATAS
 statusMessages =
 	200 : "OK"
@@ -69,7 +72,7 @@ createAbsolutePath = (relativePath,callback)->
 		else if AUTHORIZED_PATH.test(path.join ROOT,relativePath)
 			if stats.isDirectory() #|| !AUTHORIZED_PATH.test(path.join ROOT,relativePath)
 				fs.stat (path.join ROOT, relativePath, 'index.html'), (err, stats2)-> 
-					console.log !AUTHORIZED_PATH.test(path.join ROOT, relativePath, 'index.html')
+					# console.log !AUTHORIZED_PATH.test(path.join ROOT, relativePath, 'index.html')
 					if err
 						callback (path.join ROOT, relativePath),403, createErrorHtml(403)['Length']
 					else
@@ -89,21 +92,60 @@ createAbsolutePath = (relativePath,callback)->
 	# 	temp = path.join ROOT, relativePath
 	# temp
 
-parseStatusLine = (data,callback)->
+isNotEmpty = (element)-> 
+	element isnt ""
 
-	firstLine =  (data.toString().split "\r\n")[0]
+# fruits = ["Banana", "Orange", "Apple", "Mango"]
+
+# console.log(fruits)
+# console.log("Removed: " + fruits.splice(0,1))
+# console.log(fruits)
+
+parseStatusLine = (data,callback)->
+	RequestLines = (data.toString().split "\r\n")
+	console.log '<<<<<<<<<< REQUEST >>>>>>>'
+	console.log data.toString()
+	firstLine =  RequestLines.splice(0,1)[0]#0,1
+	# console.log "RequestLines.splice 0, 1", RequestLines[0],  
 	if FIRST_LINE_REGEX.test firstLine
 		requestLineArray = firstLine.split " "
-		createAbsolutePath requestLineArray[1],(path, err, fileLength)->
+		requestLine = {}
+		for line, index in RequestLines
+			# console.log  line.match REQUEST_HOST_REGEX
+			if line.match REQUEST_HOST_REGEX
+				# console.log 'line',line
+				regexLength = REQUEST_HOST_REGEX.toString().replace(/\//g,"").length
+				requestLine[host] = line.substring regexLength, line.length
+			if line.match REQUEST_REF_REGEX
+				# console.log 'line',line
+				regexLength = REQUEST_REF_REGEX.toString().replace(/\//g,"").length
+				requestLine[referer] = line.substring regexLength, line.length
+
+		regex = new RegExp requestLine[host]
+		# console.log requestLine 
+		if requestLine[referer]
+			console.log (requestLine[referer].match regex)
+			subdirectory = requestLine[referer].substring ((requestLine[referer].match regex).index + requestLine[host].length), requestLine[referer].length
+		else
+			subdirectory = "/"
+		# console.log (path.join subdirectory, requestLineArray[1])
+		createAbsolutePath (path.join subdirectory, requestLineArray[1]),(path, err, fileLength)->
 			if path
-				callback (requestLineJSON =
-					'method' : requestLineArray[0] # firstLine.substring 0,indexOf(' ')
-					'path' : path
-					'protocol' : requestLineArray[2]),err,fileLength
+				
+					# console.log index,line	
+				requestLine['method'] =  requestLineArray[0] # firstLine.substring 0,indexOf(' ')
+				requestLine['path'] = path
+				requestLine['protocol'] = requestLineArray[2]
+				
+				# console.log '\n<<<<<<<<<< requestLine  >>>>>>>>>'
+				# console.log requestLine
+				callback requestLine,err,fileLength
 			else
 				callback null,err,fileLength
+
 	else
-		callback null,404,fileLength
+		# console.log 404 , createErrorHtml(404)['Length']
+		callback null,404,createErrorHtml(404)['Length']
 
 
 createResponseHeader = ( code, ext, fileLength) ->
@@ -141,6 +183,8 @@ server = net.createServer ServerOptions, (socket)->
 		parseStatusLine data,(statusLine, statusCode, fileSize) ->
 			extension = DEFAULT_EXTENSION
 			if statusLine
+				# console.log "<<<<<< statusLine >>>>>>>"
+				# console.log "statusLine", statusLine
 				# extension = path.extname statusLine['path'].toLowerCase()
 				# fs.stat statusLine['path'], (err,stats)->
 				# if err
@@ -158,7 +202,8 @@ server = net.createServer ServerOptions, (socket)->
 				# Create responseHeader
 			responseHeader = createResponseHeader statusCode, extension,fileSize
 			# console.log statusLine['path']
-			console.log responseHeader.toString()
+			# console.log '<<<<<<<<<< RESPONSE >>>>>>>'
+			# console.log responseHeader.toString()
 				# Send the response (header + body)
 			sendResponse socket, responseHeader, statusCode, readStream
 			# else

@@ -47,10 +47,36 @@ isNotEmpty = (element)->
 
 
 # console.log 'options', contentTypeFile ext
+line1 = "Host: localhost:9000"
+line2 = "Referer: http://localhost:9000/iframe"
+host = "Host"
+
+referer = "Referer"
+REQUEST_HOST_REGEX = new RegExp "#{host}: "
+REQUEST_REF_REGEX = new RegExp "#{referer}: "
 
 
-# string = "test/../index.html"
-# console.log 'match', simpleHeader.match REQUESTLINEREGEX
+# match =simpleHeader.match REQUEST_HOST_REGEX
+# console.log REQUEST_HOST_REGEX
+requestLine = {}
+if line1.match REQUEST_HOST_REGEX
+	# console.log 'line',line
+	regexLength = REQUEST_HOST_REGEX.toString().replace(/\//g,"").length
+	requestLine[host] = line1.substring regexLength, line1.length
+if line2.match REQUEST_REF_REGEX
+	# console.log 'line',line
+	regexLength = REQUEST_REF_REGEX.toString().replace(/\//g,"").length
+	requestLine[referer] = line2.substring regexLength, line2.length
+
+regex = new RegExp requestLine[host]
+console.log requestLine[referer].match regex
+console.log requestLine[referer].substring ((requestLine[referer].match regex).index + requestLine[host].length), requestLine[referer].length
+# str = REQUEST_HOST_REGEX.toString()
+# console.log str
+# console.log str.replace(/\//g,"").length
+# console.log 'match', match.input.substring(str.replace(/\//g,"").length, simpleHeader.length)
+# console.log 'match', match.substring(match.index, REQUEST_HOST_REGEX.length)
+
 # console.log 'search', simpleHeader.search REQUESTLINEREGEX
 # console.log 'test', REQUESTLINEREGEX.test simpleHeader
 # console.log 'exec', REQUESTLINEREGEX.exec simpleHeader
