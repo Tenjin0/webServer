@@ -95,7 +95,6 @@ parseREquestHeader = (data,callback)->
 		requestLineArray[1] = if requestLineArray[1].match REQUEST_PATH_REGEX then (path.join requestLineArray[1],"index.html") else requestLineArray[1]
 		console.log "requestLineArray[1]", requestLineArray[1]
 		checkRequestPath (requestLineArray[1]),(relativePath, err, fileLength)->
-			# console.log 'callback createAbsolutePath',relativePath, err, fileLength
 			if relativePath
 				requestLine['method'] =  requestLineArray[0] # firstLine.substring 0,indexOf(' ')
 				requestLine['path'] = relativePath
@@ -106,7 +105,6 @@ parseREquestHeader = (data,callback)->
 				callback null,err,fileLength
 
 	else
-		# console.log 404 , createErrorHtml(404)['Length']
 		callback null,404,createErrorHtml(404)['Length']
 
 
@@ -122,7 +120,6 @@ createResponseHeader = (code, ext, fileLength,statusLine) ->
 	if statusLine && (code is 302 || code is 301 )
 		console.log statusLine['Host'],statusLine['path']
 		responseHeader.fields['Location'] = "http://" + (path.join statusLine['Host'],statusLine['path'])
-	# console.log  'responseHeader', responseHeader
 	toString : ->
 		str = "#{responseHeader['statusLine']}\r\n"
 		for i,v of responseHeader['fields']
@@ -153,14 +150,8 @@ server = net.createServer ServerOptions, (socket)->
 			if statusLine
 				console.log "\n<<<<<< statusLine >>>>>>>"
 				console.log statusLine
-
-				# console.log originePath
-				# if statusLine['origin']
 				if statusCode is 200
-				# else if stats.isFile()
-				# 	statusCode = 200
 					extension = path.extname statusLine['path'].toLowerCase()
-					# console.log path.join ROOT,statusLine['path']
 					readStream = fs.createReadStream (path.join ROOT,statusLine['path'])
 					readStream.on 'end', ->
 						socket.end()
@@ -175,9 +166,7 @@ server = net.createServer ServerOptions, (socket)->
 
 				# Send the response (header + body)
 			sendResponse socket, responseHeader, statusCode, readStream
-			# else
-			# 	responseHeader = createResponseHeader statusCode
-			# 	sendResponse socket, responseHeader, statusCode
+
 
 	socket.on 'error',(err) ->
 		console.log 'socket: error',err
