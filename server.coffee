@@ -62,19 +62,20 @@ createErrorHtml = (code) ->
 "
 	length : ->
 		Buffer.byteLength(@body, 'utf8')
-# Determine statusCode and FileLength
-checkRequestPath = (requestLine,callback)->
+# Determine statusCode and modify requestPath
+findStatusCode = (requestLine,callback)->
 	fs.stat (path.join ROOT, requestLine["path"]), (err,stats)->
+		tempRequestLine = requestLine
 		if err
-			callback null,404, createErrorHtml(404).length()
+			callback requestLine,404
 		else if AUTHORIZED_PATH.test(path.join ROOT,requestLine["path"])
 			if stats.isDirectory()
-				requestLine["path"] = path.join requestLine["path"],'/'
-				callback 302,0
+				tempRequestLine = path.join requestLine["path"],'/'
+				callback tempRequestLine,302
 			else if stats.isFile()
-				callback 200,stats["size"]
+				callback tempRequestLine,200
 		else
-			callback  relativePath,403, createErrorHtml(403).length()
+			callback  tempRequestLine,403
 
 parseRequestHeader = (data,callback)->
 	requestLines = (data.toString().split "\r\n")
@@ -90,12 +91,13 @@ parseRequestHeader = (data,callback)->
 			if line.match REQUEST_HOST_REGEX
 				regexLength = REQUEST_HOST_REGEX.toString().replace(/\//g,"").length
 				requestLine[host] = line.substring regexLength, line.length
-		requestLine['path'] = if requestLineArray[1].match REQUEST_PATH_REGEX then (path.join requestLineArray[1],"index.html") else requestLineArray[1]
 
-		checkRequestPath (requestLine),(err, fileLength)->
-			callback requestLine,err,fileLength
+		requestLine['path'] = if requestLineArray[1].match REQUEST_PATH_REGEX then (path.join requestLineArray[1],"index.html") else requestLineArray[1]
+		return requestLine
+		# checkRequestPath (requestLine),(err, fileLength)->
+		# 	callback requestLine,err,fileLength
 	else
-		callback null,404,createErrorHtml(404)['Length']
+		null
 
 createResponseHeader = (code, ext, fileLength,statusLine) ->
 
@@ -123,6 +125,17 @@ sendResponse = (socket, header, statusCode,readStream) ->
 				socket.end()
 			else
 				socket.end((createErrorHtml statusCode)['body'])
+createReaderStream = (relativePath,statusCode)->
+	if statusCode is 200
+
+		readStream = fs.createReadStream (path.join ROOT,relativePath)
+		readStream.on 'end', ->
+			socket.end()
+		readStream.on 'error',(err)->
+			socket.end()
+		return readStream
+	else null
+
 
 # Options for the server
 ServerOptions =
@@ -133,20 +146,17 @@ ServerOptions =
 server = net.createServer ServerOptions, (socket)->
 
 	socket.on 'data' ,(data)->
-		parseRequestHeader data,(statusLine, statusCode, fileSize) ->
+		requestHeader = parseRequestHeader data
+		findStatusCode (requestHeader),(statusLine, statusCode)->
 			extension = DEFAULT_EXTENSION
-			if statusLine.path
+
+			if statusLine && statusCode
 				# console.log "\n<<<<<< statusLine >>>>>>>"
 				# console.log statusLine
-				if statusCode is 200
-					extension = path.extname statusLine['path'].toLowerCase()
-					readStream = fs.createReadStream (path.join ROOT,statusLine['path'])
-					readStream.on 'end', ->
-						socket.end()
-					readStream.on 'error',(err)->
-						socket.end()
+				extension = path.extname statusLine['path'].toLowerCase()
 
-			responseHeader = createResponseHeader statusCode, extension,fileSize,statusLine
+				readStream = createReaderStream statusLine['path'], statusCode
+			responseHeader = createResponseHeader statusCode,extension ,statusLine
 			# console.log '\n<<<<<<<<<< RESPONSE >>>>>>>'
 			# console.log responseHeader.toString()
 
