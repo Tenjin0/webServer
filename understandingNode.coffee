@@ -1,3 +1,5 @@
+# beginning Node.js.pdf
+
 # foo = {}
 # foo.bar = 123
 # console.log foo
@@ -48,12 +50,12 @@ webRequest = (request) ->
 
 
 
-id = 1
+ind = 1
 console.log 'starting a long operation for request:', id
-setTimeout (console.log 'ending a long operation for request:', id),3000
-id = 2
+setTimeout ( -> console.log 'ending a long operation for request:', id),3000
+ind = 2
 console.log 'starting a long operation for request:', id
-setTimeout (console.log 'ending a long operation for request:', id), 3000
+setTimeout ( -> console.log 'ending a long operation for request:', id), 3000
 
 console.log '\n\n'
 
