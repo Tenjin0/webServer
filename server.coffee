@@ -19,6 +19,7 @@ host = "Host"
 referer = "Referer"
 REQUEST_HOST_REGEX = new RegExp "#{host}: "
 REQUEST_REF_REGEX = new RegExp "#{referer}: "
+REQUEST_PATH_REGEX = new RegExp "#{"\/$"}"
 # DATAS
 statusMessages =
 	200 : "OK"
@@ -30,7 +31,7 @@ statusMessages =
 	304 : "Not Modified"
 	400 : "Bad Request"
 	401 : "Unauthorized"
-	403 : "Forbidden Acces"
+	403 : "Forbidden"
 	404 : "Not Found"
 	500 : "Internal Server Error"
 	501 : "Not Implemented"
@@ -65,83 +66,41 @@ createErrorHtml = (code) ->
 	length : ->
 		Buffer.byteLength(@body, 'utf8')
 
-createAbsolutePath = (relativePath,callback)->
+checkRequestPath = (relativePath,callback)->
 	fs.stat (path.join ROOT, relativePath), (err,stats)->
 		console.log 'relativePath', relativePath ,'absolutePath', (path.join ROOT, relativePath)
 		if err
 			console.log 'stat err', err.path,createErrorHtml(404).length()
 			callback null,404, createErrorHtml(404).length()
 		else if AUTHORIZED_PATH.test(path.join ROOT,relativePath)
-			if stats.isDirectory() #|| !AUTHORIZED_PATH.test(path.join ROOT,relativePath)
-				fs.stat (path.join ROOT, relativePath, 'index.html'), (err, stats2)->
-					# console.log !AUTHORIZED_PATH.test(path.join ROOT, relativePath, 'index.html')
-					if err
-						callback relativePath,403, createErrorHtml(403).length()
-					else
-						# callback (path.join ROOT,relativePath,'index.html'),200,stats2["size"]
-						callback (path.join relativePath,'index.html'),302,0
-			else
+			if stats.isFile()
 				callback relativePath,200,stats["size"]
+			else
+				callback (path.join relativePath,'/'),302,0
 		else
 			callback  relativePath,403, createErrorHtml(403).length()
-	# try
-	# 	stats = fs.statSync path.join ROOT,relativePath
-	# 	if stats.isDirectory() && fs.existsSync (path.join ROOT, relativePath, 'index.html')
-	# 		temp = path.join ROOT, relativePath, 'index.html'
-	# 	else
-	# 		temp = path.join ROOT, relativePathac
-	# 	console.log relativePath, temp
-	# catch error
-	# 	temp = path.join ROOT, relativePath
-	# temp
 
-isNotEmpty = (element)->
-	element isnt ""
-
-# fruits = ["Banana", "Orange", "Apple", "Mango"]
-
-# console.log(fruits)
-# console.log("Removed: " + fruits.splice(0,1))
-# console.log(fruits)
-
-parseStatusLine = (data,callback)->
+parseREquestHeader = (data,callback)->
 	requestLines = (data.toString().split "\r\n")
 	console.log '<<<<<<<<<< REQUEST >>>>>>>'
 	console.log data.toString() + '\n'
 	firstLine =  requestLines.splice(0,1)[0]#0,1
-	# console.log "requestLines.splice 0, 1", requestLines[0],
 	if FIRST_LINE_REGEX.test firstLine
 		requestLineArray = firstLine.split " "
 		requestLine = {}
 		for line, index in requestLines
-			# console.log  line.match REQUEST_HOST_REGEX
 			if line.match REQUEST_HOST_REGEX
-				# console.log 'line',line
 				regexLength = REQUEST_HOST_REGEX.toString().replace(/\//g,"").length
 				requestLine[host] = line.substring regexLength, line.length
-			if line.match REQUEST_REF_REGEX
-				# console.log 'line',line
-				regexLength = REQUEST_REF_REGEX.toString().replace(/\//g,"").length
-				requestLine[referer] = line.substring regexLength, line.length
-		regex = new RegExp requestLine[host]
-		# console.log requestLine
-		if requestLine[referer]
-			# console.log (requestLine[referer].match regex)
-			subdirectory = requestLine[referer].substring ((requestLine[referer].match regex).index + requestLine[host].length), requestLine[referer].length
-		else
-			subdirectory = "/"
-
-		# console.log 'subdirectory', subdirectory, requestLineArray[1]
-		createAbsolutePath (requestLineArray[1]),(relativePath, err, fileLength)->
-			console.log 'callback createAbsolutePath',relativePath, err, fileLength
+		requestLineArray[1] = if requestLineArray[1].match REQUEST_PATH_REGEX then (path.join requestLineArray[1],"index.html") else requestLineArray[1]
+		console.log "requestLineArray[1]", requestLineArray[1]
+		checkRequestPath (requestLineArray[1]),(relativePath, err, fileLength)->
+			# console.log 'callback createAbsolutePath',relativePath, err, fileLength
 			if relativePath
 				requestLine['method'] =  requestLineArray[0] # firstLine.substring 0,indexOf(' ')
 				requestLine['path'] = relativePath
 				requestLine['protocol'] = requestLineArray[2]
-				requestLine['origin'] = path.join("http://",requestLine['Host'], requestLineArray[1])
 
-				# console.log '\n<<<<<<<<<< requestLine  >>>>>>>>>'
-				# console.log requestLine
 				callback requestLine,err,fileLength
 			else
 				callback null,err,fileLength
@@ -152,7 +111,6 @@ parseStatusLine = (data,callback)->
 
 
 createResponseHeader = (code, ext, fileLength,statusLine) ->
-	fields = {}
 
 	responseHeader =
 		statusLine : "#{DEFAULT_PROTOCOL} #{code} #{statusMessages[code]}"
@@ -161,8 +119,9 @@ createResponseHeader = (code, ext, fileLength,statusLine) ->
 			'Date' : new Date()
 			'Content-Length' : fileLength ? 0
 			'Connection' : 'close'
-	if statusLine
-		responseHeader.fields['Location'] = "http://"+ (path.join statusLine["Host"],statusLine['path'])
+	if statusLine && (code is 302 || code is 301 )
+		console.log statusLine['Host'],statusLine['path']
+		responseHeader.fields['Location'] = "http://" + (path.join statusLine['Host'],statusLine['path'])
 	# console.log  'responseHeader', responseHeader
 	toString : ->
 		str = "#{responseHeader['statusLine']}\r\n"
@@ -189,7 +148,7 @@ ServerOptions =
 server = net.createServer ServerOptions, (socket)->
 
 	socket.on 'data' ,(data)->
-		parseStatusLine data,(statusLine, statusCode, fileSize) ->
+		parseREquestHeader data,(statusLine, statusCode, fileSize) ->
 			extension = DEFAULT_EXTENSION
 			if statusLine
 				console.log "\n<<<<<< statusLine >>>>>>>"
