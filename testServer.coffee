@@ -48,7 +48,7 @@ isNotEmpty = (element)->
 
 # console.log 'options', contentTypeFile ext
 line1 = "Host: localhost:9000"
-line2 = "Referer: http://localhost:9000/iframe"
+line2 = "Referer: http://localhost:9000/iframe/index.html"
 host = "Host"
 
 referer = "Referer"
