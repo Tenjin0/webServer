@@ -14,11 +14,8 @@ DEFAULT_EXTENSION = '.html'
 # REGEXS
 FIRST_LINE_REGEX = new RegExp "(GET|POST|HEAD)[ ]([\/].*[ ]){1,}HTTP\/1\.[0-9]"
 AUTHORIZED_PATH = new RegExp "#{ROOT}.*"
-METHOD_REGEX  = new RegExp "(GET|POST|HEAD)"
 host = "Host"
-referer = "Referer"
 REQUEST_HOST_REGEX = new RegExp "#{host}: "
-REQUEST_REF_REGEX = new RegExp "#{referer}: "
 REQUEST_PATH_REGEX = new RegExp "#{"\/$"}"
 # DATAS
 statusMessages =
@@ -68,9 +65,7 @@ createErrorHtml = (code) ->
 # Determine statusCode and FileLength
 checkRequestPath = (requestLine,callback)->
 	fs.stat (path.join ROOT, requestLine["path"]), (err,stats)->
-		# console.log 'relativePath', relativePath ,'absolutePath', (path.join ROOT, relativePath)
 		if err
-			# console.log 'stat err', err.path,createErrorHtml(404).length()
 			callback null,404, createErrorHtml(404).length()
 		else if AUTHORIZED_PATH.test(path.join ROOT,requestLine["path"])
 			if stats.isDirectory()
@@ -83,11 +78,11 @@ checkRequestPath = (requestLine,callback)->
 
 parseRequestHeader = (data,callback)->
 	requestLines = (data.toString().split "\r\n")
-	console.log '<<<<<<<<<< REQUEST >>>>>>>'
-	console.log data.toString() + '\n'
+	# console.log '<<<<<<<<<< REQUEST >>>>>>>'
+	# console.log data.toString() + '\n'
 	firstLine =  requestLines.splice(0,1)[0]#0,1
-	console.log 'firstLine', firstLine
 	if FIRST_LINE_REGEX.test firstLine
+		requestLine = {}
 		requestLineArray = firstLine.split " "
 		requestLine['method'] = requestLineArray[0]
 		requestLine['protocol'] = requestLineArray[2]
