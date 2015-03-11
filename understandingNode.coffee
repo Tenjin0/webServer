@@ -51,11 +51,11 @@ webRequest = (request) ->
 
 
 ind = 1
-console.log 'starting a long operation for request:', id
-setTimeout ( -> console.log 'ending a long operation for request:', id),3000
+console.log 'starting a long operation for request:', ind
+setTimeout ( -> console.log 'ending a long operation for request:', ind),3000
 ind = 2
-console.log 'starting a long operation for request:', id
-setTimeout ( -> console.log 'ending a long operation for request:', id), 3000
+console.log 'starting a long operation for request:', ind
+setTimeout ( -> console.log 'ending a long operation for request:', ind), 3000
 
 console.log '\n\n'
 
@@ -71,3 +71,16 @@ setTimeout (->
 	) ,0
 
 
+console.time('timer')
+setTimeout (->
+	console.timeEnd('timer')
+),1000
+
+console.time('timeIt')
+(fibonacci = (n) ->
+	if n < 2
+		return n
+	else
+		fibonacci (n-1) + fibonacci(n-2)
+)(30)
+console.timeEnd('timeIt')
