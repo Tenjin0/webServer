@@ -50,25 +50,25 @@ webRequest = (request) ->
 
 
 
-ind = 1
-console.log 'starting a long operation for request:', ind
-setTimeout ( -> console.log 'ending a long operation for request:', ind),3000
-ind = 2
-console.log 'starting a long operation for request:', ind
-setTimeout ( -> console.log 'ending a long operation for request:', ind), 3000
+# ind = 1
+# console.log 'starting a long operation for request:', ind
+# setTimeout ( -> console.log 'ending a long operation for request:', ind),3000
+# ind = 2
+# console.log 'starting a long operation for request:', ind
+# setTimeout ( -> console.log 'ending a long operation for request:', ind), 3000
 
-console.log '\n\n'
+# console.log '\n\n'
 
-ind = 3
-console.log 'starting a long operation for request:', ind
-setTimeout (->
-	console.log 'ending a long operation for request:', ind
-	) ,0
-ind = 4
-console.log 'starting a long operation for request:', ind
-setTimeout (->
-	console.log 'ending a long operation for request:', ind
-	) ,0
+# ind = 3
+# console.log 'starting a long operation for request:', ind
+# setTimeout (->
+# 	console.log 'ending a long operation for request:', ind
+# 	) ,0
+# ind = 4
+# console.log 'starting a long operation for request:', ind
+# setTimeout (->
+# 	console.log 'ending a long operation for request:', ind
+# 	) ,0
 
 
 console.time('timer')
@@ -81,6 +81,13 @@ console.time('timeIt')
 	if n < 2
 		return n
 	else
-		fibonacci (n-1) + fibonacci(n-2)
-)(30)
+		fibonacci(n-1) + fibonacci(n-2)
+)(10)
 console.timeEnd('timeIt')
+
+# Everything is reference
+foo =
+	bas : 123
+bar = foo
+bar.bas = 456
+console.log foo

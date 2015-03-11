@@ -12,7 +12,7 @@ DEFAULT_PROTOCOL = 'HTTP/1.0'
 DEFAULT_EXTENSION = '.html'
 
 # REGEXS
-FIRST_LINE_REGEX = new RegExp "(GET|POST|HEAD)[ ]([\/].*[ ]){1,}HTTP\/1\.[0-9]"
+FIRST_LINE_REGEX = new RegExp "^(GET|POST|HEAD) ([\/].*) (HTTP\/[01]\.[0-9])$"
 AUTHORIZED_PATH = new RegExp "#{ROOT}.*"
 host = "Host"
 REQUEST_HOST_REGEX = new RegExp "#{host}: "
@@ -103,17 +103,18 @@ parseRequestHeader = (data,callback)->
 	# console.log '<<<<<<<<<< REQUEST >>>>>>>'
 	# console.log data.toString() + '\n'
 	firstLine =  requestLines.splice(0,1)[0]#0,1
-	if FIRST_LINE_REGEX.test firstLine
+	firstLine.match FIRST_LINE_REGEX
+	if match = firstLine.match FIRST_LINE_REGEX
 		requestLine = {}
-		requestLineArray = firstLine.split " "
-		requestLine['method'] = requestLineArray[0]
-		requestLine['protocol'] = requestLineArray[2]
+		requestLine['method'] = match[1]
+		requestLine['protocol'] = match[3]
 		for line, index in requestLines
 			if line.match REQUEST_HOST_REGEX
 				regexLength = REQUEST_HOST_REGEX.toString().replace(/\//g,"").length
 				requestLine[host] = line.substring regexLength, line.length
 
-		requestLine['path'] = if requestLineArray[1].match REQUEST_PATH_REGEX then (path.join requestLineArray[1],"index.html") else requestLineArray[1]
+		requestLine['path'] = if match[2].match REQUEST_PATH_REGEX then (path.join match[2],"index.html") else match[2]
+		console.log 'requestLine', requestLine
 		return requestLine
 
 	else
