@@ -30,6 +30,7 @@ statusMessages =
 	401 : "Unauthorized"
 	403 : "Forbidden"
 	404 : "Not Found"
+	414 : "Request-URI Too Long"
 	500 : "Internal Server Error"
 	501 : "Not Implemented"
 	502 : "Bad Gateway"
@@ -73,6 +74,10 @@ createResponse = (socket,requestLineData,callback)->
 		if err
 			responseEntity['path'] = null
 			responseAttributes['status'] = 404
+			responseEntity['size '] = createErrorHtml(responseAttributes['statusCode']).length()
+		else if requestLineData.method is 'GET' && Buffer.byteLength(requestLineData.path, 'utf8') > 255
+			responseEntity['path'] = null
+			responseAttributes['status'] = 414
 			responseEntity['size '] = createErrorHtml(responseAttributes['statusCode']).length()
 		else if AUTHORIZED_PATH.test(path.join ROOT,responseEntity["path"])
 			if stats.isDirectory()
@@ -149,7 +154,6 @@ createReaderStream = (socket,relativePath,statusCode)->
 		null
 
 sendResponse = (socket, header, body) ->
-	console.log body.path,'\n',header.toString()
 	socket.write header.toString(),->
 		if body.readStream
 			body.readStream.pipe socket

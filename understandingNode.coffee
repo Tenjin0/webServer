@@ -157,3 +157,53 @@ console.log 'bas.bar', bas.bar
 foo.prototype.bar = 789
 bas2 = new foo()
 console.log 'bas.bar',bas2.bar
+
+# pattern prototype for class
+
+someClass = ->
+  # Properties go here
+	@someProperty = 'some initial value'
+
+someClass::someMemberFunction = ->
+
+	@someProperty = 'modified value'
+	return
+
+# Creation
+instance = new someClass()
+# Usage
+console.log instance.someProperty
+# some initial value
+instance.someMemberFunction()
+console.log instance.someProperty
+
+
+Point = ->
+	@x = null
+	@y = null
+	Point.prototype.bar = 123
+
+Point.prototype.setPoint = (xx,yy)->
+	@x = xx
+	@y = yy
+
+
+Point::print = ->
+	console.log "(#{@x},#{@y})"
+
+a = new Point()
+a.setPoint(1,2)
+b = new Point()
+b.setPoint(2,3)
+a.print()
+b.print()
+
+
+# os core module
+
+os = require 'os'
+gigaByte = 1 / (Math.pow(1024, 3))
+console.log 'Total memory ', os.totalmem() * gigaByte, 'GB'
+console.log 'Free memory ',  os.freemem() * gigaByte, 'GB'
+console.log 'Percent consumed memory ', (os.totalmem() - os.freemem()) *100 / os.totalmem()+  '%'
+console.log('This machine has', os.cpus())
