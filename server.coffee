@@ -114,7 +114,6 @@ parseRequestHeader = (data,callback)->
 				requestLine[host] = line.substring regexLength, line.length
 
 		requestLine['path'] = if match[2].match REQUEST_PATH_REGEX then (path.join match[2],"index.html") else match[2]
-		console.log 'requestLine', requestLine
 		return requestLine
 
 	else
@@ -171,7 +170,6 @@ server = net.createServer ServerOptions, (socket)->
 		requestHeader = parseRequestHeader data
 
 		createResponse socket, requestHeader,(responseHeader,responseEntity)->
-
 			# console.log '\n<<<<<<<<<< RESPONSE >>>>>>>'
 			# console.log responseHeader.toString()
 			sendResponse socket, responseHeader, responseEntity

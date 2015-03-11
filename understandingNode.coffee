@@ -85,9 +85,75 @@ console.time('timeIt')
 )(10)
 console.timeEnd('timeIt')
 
-# Everything is reference
+# Everything is reference when modifing inside a function the attribute an object passed in parameter the change will be keeps after the return of th function / copy passed just the attribut in function parameter
 foo =
 	bas : 123
 bar = foo
 bar.bas = 456
 console.log foo
+
+#Truthy falsy
+
+if (!false)
+	console.log 'false: falsy'
+
+if (!null)
+	console.log 'null: falsy'
+
+if (!undefined)
+	console.log 'undefined: falsy'
+
+if (!'')
+	console.log '\'\': falsy'
+
+if (!0)
+	console.log '0:falsy'
+
+if (1)
+	console.log '1:Truthy'
+
+if (2)
+	console.log '2:Truthy'
+
+
+# Module pattern : first class function, closure, litteral object
+
+printableMessage = ->
+	message = 'hello'
+
+	getMessage = ->
+		return message
+
+	setMessage = (entry)->
+		if !entry
+			throw new Error('cannot set empty message')
+		message = entry
+
+	printMessage = ->
+		console.log message
+
+	{
+		getMessage : getMessage
+		setMessage : setMessage
+		printMessage : printMessage
+	}
+mess = printableMessage()
+
+mess.setMessage('toto')
+mess2 = printableMessage()
+mess.printMessage()
+mess2.setMessage('au revoir')
+mess2.printMessage()
+
+
+foo = ->
+
+foo.prototype.bar = 123
+foo.ter = 456
+bas = new foo()
+# console.log bas.ter undefined
+console.log '__proto__ and prototype',bas.__proto__.bar == foo.prototype.bar
+console.log 'bas.bar', bas.bar
+foo.prototype.bar = 789
+bas2 = new foo()
+console.log 'bas.bar',bas2.bar
