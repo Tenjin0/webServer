@@ -49,8 +49,9 @@ contentTypeMap =
 	'.css': 'text/css'
 
 # OBJETS AND FUNCTIONS
-createErrorHtml = (code) ->
-	body : "<!DOCTYPE html>
+class ErrorHtml
+	constructor: (code) ->
+		@body = "<!DOCTYPE html>
 <html>
 <head>
 	<title>Webserver Test</title>
@@ -61,38 +62,40 @@ createErrorHtml = (code) ->
 </body>
 </html>\n
 "
-	length : ->
+	getBody: ->
+		@body
+	length: ->
 		Buffer.byteLength(@body, 'utf8')
+
 # Determine statusCode contents' size and path that will be in the response Header
-#prepareresponseAttributes
 
+class RequestHeader
+	constructor: (data) ->
+		requestLine  = @parseRequestHeader data
+		@method = requestLine.method
+		@protocol = requestLine.protocol
+		@path = requestLine.path
+		@host = requestLine.Host
 
+	parseRequestHeader : (data)->
+		requestLines = (data.toString().split "\r\n")
+		# console.log '<<<<<<<<<< REQUEST >>>>>>>'
+		# console.log data.toString() + '\n'
+		firstLine =  requestLines.splice(0,1)[0]#0,1
+		firstLine.match FIRST_LINE_REGEX
+		if match = firstLine.match FIRST_LINE_REGEX
+			requestLine = {}
+			requestLine['method'] = match[1]
+			requestLine['protocol'] = match[3]
+			for line, index in requestLines
+				if line.match REQUEST_HOST_REGEX
+					regexLength = REQUEST_HOST_REGEX.toString().replace(/\//g,"").length
+					requestLine[host] = line.substring regexLength, line.length
 
-
-
-parseRequestHeader = (data,callback)->
-	requestLines = (data.toString().split "\r\n")
-	console.log '<<<<<<<<<< REQUEST >>>>>>>'
-	console.log data.toString() + '\n'
-	firstLine =  requestLines.splice(0,1)[0]#0,1
-	firstLine.match FIRST_LINE_REGEX
-	if match = firstLine.match FIRST_LINE_REGEX
-		requestLine = {}
-		requestLine['method'] = match[1]
-		requestLine['protocol'] = match[3]
-		for line, index in requestLines
-			if line.match REQUEST_HOST_REGEX
-
-				regexLength = REQUEST_HOST_REGEX.toString().replace(/\//g,"").length
-				requestLine[host] = line.substring regexLength, line.length
-				console.log regexLength,requestLine[host]
-
-		requestLine['path'] = if match[2].match REQUEST_PATH_REGEX then (path.join match[2],"index.html") else match[2]
-		# console.log '<<<<<<<<<<<<< requestLine >>>>>>>>>>'
-		# console.log requestLine
-		return requestLine
-	else
-		null
+			requestLine['path'] = if match[2].match REQUEST_PATH_REGEX then (path.join match[2],"index.html") else match[2]
+			return requestLine
+		else
+			null
 
 getResponseInfo = (socket,requestLineData,callback)->
 	fs.stat (path.join ROOT, requestLineData['path']), (err,stats)->
@@ -101,11 +104,9 @@ getResponseInfo = (socket,requestLineData,callback)->
 		if requestLineData.method is 'GET' && Buffer.byteLength(path.basename(requestLineData.path), 'utf8') > 255
 			tempPath = null
 			tempStatusCode = 414
-			# tempContentSize = createErrorHtml(tempStatusCode).length()
 		else if err
 			tempPath = null
 			tempStatusCode = 404
-			# tempContentSize = createErrorHtml(tempStatusCode).length()
 		else if AUTHORIZED_PATH.test(path.join ROOT,tempPath)
 			if stats.isDirectory()
 				tempPath = path.join tempPath,'/'
@@ -118,13 +119,11 @@ getResponseInfo = (socket,requestLineData,callback)->
 			tempStatusCode = 403
 
 		if tempStatusCode isnt 200 && tempStatusCode isnt 302
-			errorHtml = createErrorHtml(tempStatusCode)
-			console.log 'errorHtml', errorHtml
-			tempErrorHtml= errorHtml.body
+			errorHtml = new ErrorHtml(tempStatusCode)
+			tempErrorHtml= errorHtml.getBody()
 			tempContentSize = errorHtml.length()
 		tempReadStream = createReaderStream socket, tempPath,tempStatusCode
-
-		tempHost = requestLineData.Host ? null
+		tempHost = requestLineData.host ? null
 
 		responseEntity =
 			host : tempHost
@@ -135,8 +134,9 @@ getResponseInfo = (socket,requestLineData,callback)->
 			contentSize : tempContentSize
 			readStream :tempReadStream
 			errorHtml : tempErrorHtml
-		console.log '<<<<<<<<<<<<<< responseEntity >>>>>>>>>>>\n',responseEntity
+		# console.log '<<<<<<<<<<<<<< responseEntity >>>>>>>>>>>\n',responseEntity
 		callback responseEntity
+
 
 createResponseHeader = (responseInfo) ->
 	responseHeader =
@@ -148,7 +148,6 @@ createResponseHeader = (responseInfo) ->
 			'Connection' : 'close'
 	if (responseInfo.statusCode is 302 || responseInfo.statusCode is 301 )
 		responseHeader.fields['Location'] = "http://" + (path.join responseInfo['host'],responseInfo['path'])
-	# console.log 'responseHeader',responseHeader
 	toString = ->
 		str = "#{responseHeader['statusLine']}\r\n"
 		for i,v of responseHeader['fields']
@@ -180,16 +179,15 @@ createReaderStream = (socket,relativePath,statusCode)->
 	else
 		null
 
-createResponse = (socket, requestData, callback) ->
+
+createResponse = (socket,requestData,callback) ->
 	getResponseInfo socket, requestData, (responseEntity) ->
 		response =
 			header : createResponseHeader responseEntity
 			body : createResponseBody responseEntity
-		# console.log response.header.toString(),'\n',response.body
 		callback response
 
-sendResponse = (socket,response) ->
-	console.log 'response', response.header.toString()
+sendResponse = (socket, response) ->
 	socket.write response.header.toString(),->
 		if response.body.readStream
 			response.body.readStream.pipe socket
@@ -198,6 +196,8 @@ sendResponse = (socket,response) ->
 				socket.end()
 			else
 				socket.end(response.body.errorHtml)
+
+
 # Options for the server
 ServerOptions =
 	allowHalfOpen: false,
@@ -207,8 +207,8 @@ ServerOptions =
 server = net.createServer ServerOptions, (socket)->
 
 	socket.on 'data' ,(data)->
-		requestHeader = parseRequestHeader data
-
+		requestHeader = new RequestHeader data
+		# console.log 'requestHeader', requestHeader
 		createResponse socket, requestHeader,(response) ->
 			console.log '\n<<<<<<<<<< RESPONSE >>>>>>>'
 			console.log response
