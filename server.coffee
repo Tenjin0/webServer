@@ -63,17 +63,12 @@ createErrorHtml = (code) ->
 "
 	length : ->
 		Buffer.byteLength(@body, 'utf8')
+
 # Determine statusCode contents' size and path that will be in the response Header
-#prepareresponseAttributes
-
-
-
-
-
 parseRequestHeader = (data,callback)->
 	requestLines = (data.toString().split "\r\n")
-	console.log '<<<<<<<<<< REQUEST >>>>>>>'
-	console.log data.toString() + '\n'
+	# console.log '<<<<<<<<<< REQUEST >>>>>>>'
+	# console.log data.toString() + '\n'
 	firstLine =  requestLines.splice(0,1)[0]#0,1
 	firstLine.match FIRST_LINE_REGEX
 	if match = firstLine.match FIRST_LINE_REGEX
@@ -88,8 +83,6 @@ parseRequestHeader = (data,callback)->
 				console.log regexLength,requestLine[host]
 
 		requestLine['path'] = if match[2].match REQUEST_PATH_REGEX then (path.join match[2],"index.html") else match[2]
-		# console.log '<<<<<<<<<<<<< requestLine >>>>>>>>>>'
-		# console.log requestLine
 		return requestLine
 	else
 		null
@@ -101,11 +94,9 @@ getResponseInfo = (socket,requestLineData,callback)->
 		if requestLineData.method is 'GET' && Buffer.byteLength(path.basename(requestLineData.path), 'utf8') > 255
 			tempPath = null
 			tempStatusCode = 414
-			# tempContentSize = createErrorHtml(tempStatusCode).length()
 		else if err
 			tempPath = null
 			tempStatusCode = 404
-			# tempContentSize = createErrorHtml(tempStatusCode).length()
 		else if AUTHORIZED_PATH.test(path.join ROOT,tempPath)
 			if stats.isDirectory()
 				tempPath = path.join tempPath,'/'
@@ -119,7 +110,6 @@ getResponseInfo = (socket,requestLineData,callback)->
 
 		if tempStatusCode isnt 200 && tempStatusCode isnt 302
 			errorHtml = createErrorHtml(tempStatusCode)
-			console.log 'errorHtml', errorHtml
 			tempErrorHtml= errorHtml.body
 			tempContentSize = errorHtml.length()
 		tempReadStream = createReaderStream socket, tempPath,tempStatusCode
@@ -135,7 +125,7 @@ getResponseInfo = (socket,requestLineData,callback)->
 			contentSize : tempContentSize
 			readStream :tempReadStream
 			errorHtml : tempErrorHtml
-		console.log '<<<<<<<<<<<<<< responseEntity >>>>>>>>>>>\n',responseEntity
+		# console.log '<<<<<<<<<<<<<< responseEntity >>>>>>>>>>>\n',responseEntity
 		callback responseEntity
 
 createResponseHeader = (responseInfo) ->
@@ -148,7 +138,6 @@ createResponseHeader = (responseInfo) ->
 			'Connection' : 'close'
 	if (responseInfo.statusCode is 302 || responseInfo.statusCode is 301 )
 		responseHeader.fields['Location'] = "http://" + (path.join responseInfo['host'],responseInfo['path'])
-	# console.log 'responseHeader',responseHeader
 	toString = ->
 		str = "#{responseHeader['statusLine']}\r\n"
 		for i,v of responseHeader['fields']
@@ -185,7 +174,6 @@ createResponse = (socket, requestData, callback) ->
 		response =
 			header : createResponseHeader responseEntity
 			body : createResponseBody responseEntity
-		# console.log response.header.toString(),'\n',response.body
 		callback response
 
 sendResponse = (socket,response) ->
@@ -198,6 +186,7 @@ sendResponse = (socket,response) ->
 				socket.end()
 			else
 				socket.end(response.body.errorHtml)
+
 # Options for the server
 ServerOptions =
 	allowHalfOpen: false,
