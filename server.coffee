@@ -65,48 +65,15 @@ createErrorHtml = (code) ->
 		Buffer.byteLength(@body, 'utf8')
 # Determine statusCode contents' size and path that will be in the response Header
 #prepareresponseAttributes
-createResponse = (socket,requestLineData,callback)->
-	fs.stat (path.join ROOT, requestLineData['path']), (err,stats)->
-		responseEntity =
-			 path : requestLineData['path']
-		responseAttributes =
-			extension : DEFAULT_EXTENSION
-		if err
-			responseEntity['path'] = null
-			responseAttributes['status'] = 404
-			responseEntity['size '] = createErrorHtml(responseAttributes['statusCode']).length()
-		else if requestLineData.method is 'GET' && Buffer.byteLength(requestLineData.path, 'utf8') > 255
-			responseEntity['path'] = null
-			responseAttributes['status'] = 414
-			responseEntity['size '] = createErrorHtml(responseAttributes['statusCode']).length()
-		else if AUTHORIZED_PATH.test(path.join ROOT,responseEntity["path"])
-			if stats.isDirectory()
-				responseEntity['path'] = path.join responseEntity["path"],'/'
-				responseAttributes['statusCode'] = 302
-			else if stats.isFile()
-				responseAttributes['statusCode'] = 200
-				responseEntity['size'] = stats['size']
-				responseAttributes['extension'] = path.extname responseEntity['path'].toLowerCase()
-		else
-			responseAttributes['statusCode'] = 403
 
-		if responseAttributes['statusCode'] isnt 200 && responseAttributes['statusCode'] isnt 302
-			errorHtml = createErrorHtml(responseAttributes['statusCode'])
-			responseEntity['errorHtml'] = errorHtml.body
-			responseEntity['size'] = errorHtml.length()
-		responseEntity['readStream'] = createReaderStream socket, responseEntity['path'],responseAttributes['statusCode']
-
-		responseHeader = createResponseHeader responseAttributes, requestLineData, responseEntity
-
-		callback responseHeader , responseEntity
 
 
 
 
 parseRequestHeader = (data,callback)->
 	requestLines = (data.toString().split "\r\n")
-	# console.log '<<<<<<<<<< REQUEST >>>>>>>'
-	# console.log data.toString() + '\n'
+	console.log '<<<<<<<<<< REQUEST >>>>>>>'
+	console.log data.toString() + '\n'
 	firstLine =  requestLines.splice(0,1)[0]#0,1
 	firstLine.match FIRST_LINE_REGEX
 	if match = firstLine.match FIRST_LINE_REGEX
@@ -115,32 +82,92 @@ parseRequestHeader = (data,callback)->
 		requestLine['protocol'] = match[3]
 		for line, index in requestLines
 			if line.match REQUEST_HOST_REGEX
+
 				regexLength = REQUEST_HOST_REGEX.toString().replace(/\//g,"").length
 				requestLine[host] = line.substring regexLength, line.length
+				console.log regexLength,requestLine[host]
 
 		requestLine['path'] = if match[2].match REQUEST_PATH_REGEX then (path.join match[2],"index.html") else match[2]
+		# console.log '<<<<<<<<<<<<< requestLine >>>>>>>>>>'
+		# console.log requestLine
 		return requestLine
-
 	else
 		null
 
-createResponseHeader = (responseAttributes,request, responseEntity) ->
+getResponseInfo = (socket,requestLineData,callback)->
+	fs.stat (path.join ROOT, requestLineData['path']), (err,stats)->
+		tempExtension  = DEFAULT_EXTENSION
+		tempPath = requestLineData['path']
+		if requestLineData.method is 'GET' && Buffer.byteLength(path.basename(requestLineData.path), 'utf8') > 255
+			tempPath = null
+			tempStatusCode = 414
+			# tempContentSize = createErrorHtml(tempStatusCode).length()
+		else if err
+			tempPath = null
+			tempStatusCode = 404
+			# tempContentSize = createErrorHtml(tempStatusCode).length()
+		else if AUTHORIZED_PATH.test(path.join ROOT,tempPath)
+			if stats.isDirectory()
+				tempPath = path.join tempPath,'/'
+				tempStatusCode = 302
+			else if stats.isFile()
+				tempStatusCode = 200
+				tempContentSize = stats['size']
+				tempExtension = path.extname tempPath.toLowerCase()
+		else
+			tempStatusCode = 403
+
+		if tempStatusCode isnt 200 && tempStatusCode isnt 302
+			errorHtml = createErrorHtml(tempStatusCode)
+			console.log 'errorHtml', errorHtml
+			tempErrorHtml= errorHtml.body
+			tempContentSize = errorHtml.length()
+		tempReadStream = createReaderStream socket, tempPath,tempStatusCode
+
+		tempHost = requestLineData.Host ? null
+
+		responseEntity =
+			host : tempHost
+			protocol : requestLineData.protocol
+			extension : tempExtension
+			path : tempPath
+			statusCode : tempStatusCode
+			contentSize : tempContentSize
+			readStream :tempReadStream
+			errorHtml : tempErrorHtml
+		console.log '<<<<<<<<<<<<<< responseEntity >>>>>>>>>>>\n',responseEntity
+		callback responseEntity
+
+createResponseHeader = (responseInfo) ->
 	responseHeader =
-		statusLine : "#{request.protocol} #{responseAttributes.statusCode} #{statusMessages[responseAttributes.statusCode]}"
+		statusLine : "#{responseInfo.protocol} #{responseInfo.statusCode} #{statusMessages[responseInfo.statusCode]}"
 		fields :
-			'content-Type' : contentTypeMap[responseAttributes.extension] ? 'text/plain'
+			'content-Type' : contentTypeMap[responseInfo.extension] ? 'text/plain'
 			'Date' : new Date()
-			'Content-Length' : responseEntity.size ? 0
+			'Content-Length' : responseInfo.contentSize ? 0
 			'Connection' : 'close'
-	if request && (responseAttributes.statusCode is 302 || responseAttributes.statusCode is 301 )
-		responseHeader.fields['Location'] = "http://" + (path.join request['Host'],responseEntity['path'])
-	toString : ->
+	if (responseInfo.statusCode is 302 || responseInfo.statusCode is 301 )
+		responseHeader.fields['Location'] = "http://" + (path.join responseInfo['host'],responseInfo['path'])
+	# console.log 'responseHeader',responseHeader
+	toString = ->
 		str = "#{responseHeader['statusLine']}\r\n"
 		for i,v of responseHeader['fields']
 			str += i + ': ' + v + "\r\n"
 		str + '\r\n'
 
+	{
+		statusLine : responseHeader.statusLine
+		fields : responseHeader.fields
+		toString : toString
+	}
 
+
+
+createResponseBody = (info) ->
+	responseBody =
+		errorHtml : info.errorHtml
+		extension : info.extension
+		readStream : info.readStream
 
 createReaderStream = (socket,relativePath,statusCode)->
 	if statusCode is 200
@@ -153,15 +180,24 @@ createReaderStream = (socket,relativePath,statusCode)->
 	else
 		null
 
-sendResponse = (socket, header, body) ->
-	socket.write header.toString(),->
-		if body.readStream
-			body.readStream.pipe socket
+createResponse = (socket, requestData, callback) ->
+	getResponseInfo socket, requestData, (responseEntity) ->
+		response =
+			header : createResponseHeader responseEntity
+			body : createResponseBody responseEntity
+		# console.log response.header.toString(),'\n',response.body
+		callback response
+
+sendResponse = (socket,response) ->
+	console.log 'response', response.header.toString()
+	socket.write response.header.toString(),->
+		if response.body.readStream
+			response.body.readStream.pipe socket
 		else
-			if header.statusCode is 302
+			if response.header.statusCode is 302
 				socket.end()
 			else
-				socket.end(body.errorHtml)
+				socket.end(response.body.errorHtml)
 # Options for the server
 ServerOptions =
 	allowHalfOpen: false,
@@ -173,10 +209,10 @@ server = net.createServer ServerOptions, (socket)->
 	socket.on 'data' ,(data)->
 		requestHeader = parseRequestHeader data
 
-		createResponse socket, requestHeader,(responseHeader,responseEntity)->
-			# console.log '\n<<<<<<<<<< RESPONSE >>>>>>>'
-			# console.log responseHeader.toString()
-			sendResponse socket, responseHeader, responseEntity
+		createResponse socket, requestHeader,(response) ->
+			console.log '\n<<<<<<<<<< RESPONSE >>>>>>>'
+			console.log response
+			sendResponse socket, response
 
 	socket.on 'error',(err) ->
 		console.log 'socket: error',err
