@@ -76,6 +76,7 @@ class RequestHeader
 		@protocol = requestLine.protocol
 		@path = requestLine.path
 		@host = requestLine.Host
+		@originalPath = requestLine.originalPath
 
 	parseRequestHeader : (data)->
 		requestLines = (data.toString().split "\r\n")
@@ -93,6 +94,7 @@ class RequestHeader
 					requestLine[host] = line.substring regexLength, line.length
 			requestLine['originalPath'] = match[2]
 			requestLine['path'] = if match[2].match REQUEST_PATH_REGEX then (path.join match[2],"index.html") else match[2]
+
 			return requestLine
 		else
 			null
@@ -108,7 +110,8 @@ class Response
 	constructor :  ->
 
 	getResponseInfo : (socket,requestLineData,callback)->
-		console.log 'requestLineData',requestLineData
+		# console.log '<<<<<<<<<<< requestLineData >>>>>>>>>'
+		# console.log 'requestLineData',requestLineData
 		fs.stat (path.join ROOT, requestLineData['path']), (err,stats)->
 			tempExtension  = DEFAULT_EXTENSION
 			tempPath = requestLineData['path']
@@ -116,9 +119,15 @@ class Response
 				tempPath = null
 				tempStatusCode = 414
 			else if err
-				if fs.accessSync requestLineData.originalPath, fs.R_OK
-				tempPath = null
-				tempStatusCode = 404
+				try
+					err = fs.accessSync path.join(ROOT, requestLineData.originalPath), fs.R_OK
+					tempPath = requestLineData.originalPath
+					tempStatusCode = 403
+					console.log err, tempStatusCode,tempPath
+				catch error
+					tempPath = null
+					tempStatusCode = 404
+					console.log error, tempStatusCode,tempPath
 			else if AUTHORIZED_PATH.test(path.join ROOT,tempPath)
 				if stats.isDirectory()
 					tempPath = path.join tempPath,'/'
@@ -221,12 +230,14 @@ server = net.createServer ServerOptions, (socket)->
 
 	socket.on 'data' ,(data)->
 		requestHeader = new RequestHeader data
-		# console.log 'requestHeader', requestHeader
+		# console.log '\n<<<<<<<<<< requestHeader >>>>>>>'
+		# console.log requestHeader
+		# console.log ''
 		response = new Response(socket)
 
 		response.createResponse socket, requestHeader,->
-			console.log '\n<<<<<<<<<< RESPONSE >>>>>>>'
-			console.log response.getResponse()
+			# console.log '\n<<<<<<<<<< RESPONSE >>>>>>>'
+			# console.log response.getResponse()
 			response.sendResponse socket
 
 	socket.on 'error',(err) ->
