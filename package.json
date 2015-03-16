@@ -17,8 +17,8 @@
   },
   "homepage": "https://github.com/Tenjin0/webServer",
   "devDependencies": {
-  },
-  "dependencies": {
-
-  }
+    "chai": "^1.10.0",
+    "mocha": "^2.1.0"
+   },
+  "dependencies": {}
 }

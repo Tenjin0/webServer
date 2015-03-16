@@ -1,3 +1,7 @@
+### reference
+	http://curl.haxx.se/rfc/cookie_spec.html
+###
+
 # MODULES RECQUIS
 fs = require 'fs'
 net = require 'net'
@@ -6,17 +10,22 @@ path = require 'path'
 conf = JSON.parse(fs.readFileSync('conf/local.json'
 	, 'utf8'))
 
+DOMAIN_NAME = 'patrice'
 ROOT = path.join( __dirname , conf.contentFolderPath)
-ind = 0
+sessionId = 1
 DEFAULT_PROTOCOL = 'HTTP/1.0'
 DEFAULT_EXTENSION = '.html'
+SESSION_ID = "sessionId"
 
 # REGEXS
 FIRST_LINE_REGEX = new RegExp "^(GET|POST|HEAD) ([\/].*) (HTTP\/[01]\.[0-9])$"
 AUTHORIZED_PATH = new RegExp "#{ROOT}.*"
 host = "Host"
-REQUEST_HOST_REGEX = new RegExp "#{host}: "
+REQUEST_HOST_REGEX = new RegExp "#{host}: ((.*):([]|[0-9]{4}))"
 REQUEST_PATH_REGEX = new RegExp "#{"\/$"}"
+COOKIE_REGEX = new RegExp "Cookie: (([^;]*=[^;]*;)*[^;]*=[^;]*)$"
+NAME_VALUE_REGEX = new RegExp "(.*)=(.*)"
+
 # DATAS
 statusMessages =
 	200 : "OK"
@@ -75,8 +84,9 @@ class RequestHeader
 		@method = requestLine.method
 		@protocol = requestLine.protocol
 		@path = requestLine.path
-		@host = requestLine.Host
+		@host = requestLine.host
 		@originalPath = requestLine.originalPath
+		@cookies = requestLine.cookies
 
 	parseRequestHeader : (data)->
 		requestLines = (data.toString().split "\r\n")
@@ -89,9 +99,16 @@ class RequestHeader
 			requestLine['method'] = match[1]
 			requestLine['protocol'] = match[3]
 			for line, index in requestLines
-				if line.match REQUEST_HOST_REGEX
-					regexLength = REQUEST_HOST_REGEX.toString().replace(/\//g,"").length
-					requestLine[host] = line.substring regexLength, line.length
+				if matchHost = line.match REQUEST_HOST_REGEX
+					requestLine.host =
+						domain : matchHost[2]
+						port : matchHost[3]
+				if matchCookie = line.match COOKIE_REGEX
+					requestLine['cookies'] = []
+					split = matchCookie[1].split("; ")
+					for i in split
+						match2 = i.match NAME_VALUE_REGEX
+						requestLine.cookies[match2[1]] = match2[2]
 			requestLine['originalPath'] = match[2]
 			requestLine['path'] = if match[2].match REQUEST_PATH_REGEX then (path.join match[2],"index.html") else match[2]
 
@@ -99,15 +116,57 @@ class RequestHeader
 		else
 			null
 
+	getCookieSession : ->
+		for i,v of @cookies
+			if i is SESSION_ID
+				return new Cookie(i,v)
+		return null
+
+	getDomain: ->
+		@host.domain
+
+class Cookie
+	constructor : (name,value,domain)->
+		# console.log name,value,domain
+		@name = name
+		@value = value
+		@fields =
+			date : null
+			domain : null
+			path : null
+		if domain
+			@fields['domain'] = null
+		@fields['path'] = "/"
+		@fields['date'] = null
 
 
+	setDomain : (domain)->
+		@domain = domain
+
+	setPath : (path)->
+		@path = path
 
 
+	# Set-Cookie: NAME=VALUE; expires=DATE;
+	# path=PATH; domain=DOMAIN_NAME; secure
+	toString : ->
+		str = "#{@name}=#{@value}"
+		for i, v of @fields
+			# console.log i,v
+			str += if v then "; #{i}=#{v}" else ""
+		str += if @secure then "; secure" else ""
 
-
-
+class SessionCookie extends Cookie
+	constructor : (domain)->
+		super SESSION_ID,sessionId++,domain
+		# @domain = domain
 class Response
 	constructor :  ->
+		@response =
+			header :
+				fields :
+					cookie : null
+			body : null
 
 	getResponseInfo : (socket,requestLineData,callback)->
 		# console.log '<<<<<<<<<<< requestLineData >>>>>>>>>'
@@ -156,7 +215,7 @@ class Response
 				contentSize : tempContentSize
 				readStream :tempReadStream
 				errorHtml : tempErrorHtml
-			# console.log '<<<<<<<<<<<<<< responseEntity >>>>>>>>>>>\n',responseEntity
+			# console.log '\n<<<<<<<<<<<<<< responseEntity >>>>>>>>>>>\n',responseEntity
 			callback responseEntity
 
 	createReaderStream = (socket,relativePath,statusCode)->
@@ -187,7 +246,7 @@ class Response
 				'Content-Length' : responseInfo.contentSize ? 0
 				'Connection' : 'close'
 		if (responseInfo.statusCode is 302 || responseInfo.statusCode is 301 )
-			responseHeader.fields['Location'] = "http://" + (path.join responseInfo['host'],responseInfo['path'])
+			responseHeader.fields['Location'] = "http://" + (path.join "#{responseInfo.host.domain}:#{responseInfo.host.port}",responseInfo['path'])
 		toString = ->
 			str = "#{responseHeader['statusLine']}\r\n"
 			for i,v of responseHeader['fields']
@@ -199,6 +258,11 @@ class Response
 			fields : responseHeader.fields
 			toString : toString
 		}
+
+	addCookie : (cookie)->
+		# if cookie instanceof Cookie
+			# console.log 'cookie',cookie
+		@response.header.fields["Set-Cookie"] = cookie
 
 	createResponseBody : (info) ->
 		responseBody =
@@ -229,6 +293,9 @@ ServerOptions =
 server = net.createServer ServerOptions, (socket)->
 
 	socket.on 'data' ,(data)->
+		# console.log '\n<<<<<<<<<< Request >>>>>>>'
+		# console.log data.toString('utf-8')
+		# console.log ''
 		requestHeader = new RequestHeader data
 		# console.log '\n<<<<<<<<<< requestHeader >>>>>>>'
 		# console.log requestHeader
@@ -236,6 +303,13 @@ server = net.createServer ServerOptions, (socket)->
 		response = new Response(socket)
 
 		response.createResponse socket, requestHeader,->
+			cookie = new Cookie('sesssionId',sessionId,requestHeader.getDomain())
+			if !(sessionCookie =requestHeader.getCookieSession())
+				sessionCookie = new SessionCookie(requestHeader.getDomain())
+				response.addCookie(sessionCookie)
+			# console.log '\n<<<<<<<<<< Cookie >>>>>>>'
+			# console.log sessionCookie
+			# console.log ''
 			# console.log '\n<<<<<<<<<< RESPONSE >>>>>>>'
 			# console.log response.getResponse()
 			response.sendResponse socket
@@ -245,5 +319,5 @@ server = net.createServer ServerOptions, (socket)->
 	socket.on 'close', ->
 		# console.log 'socket: close'
 
-server.listen 9000,'localhost'
+server.listen 9000,DOMAIN_NAME
 
