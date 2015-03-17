@@ -43,12 +43,15 @@ ServerOptions =
 
 # SERVER
 server = net.createServer ServerOptions, (socket)->
-	tempData =""
+	socket.setEncoding('utf8')
 	socket.on 'data' ,(data)->
+		if !tempData
+			tempData = ""
 		tempData += data
-		console.log 'data: ',tempData
-		if tempData.match new RegExp "\r\n\r\n$"
-			console.log 'ca marche'
+		console.log '\n<<<<<<<<<< DATA >>>>>>>'
+		console.log tempData
+		if match = tempData.match new RegExp "\r\n\r\n"
+			console.log 'ca marche',match
 		# console.log '\n<<<<<<<<<< Request >>>>>>>'
 		# console.log data.toString('utf-8')
 		# console.log ''
@@ -63,12 +66,13 @@ server = net.createServer ServerOptions, (socket)->
 
 					# console.log '\n<<<<<<<<<< ResponseCookies >>>>>>>'
 					# console.log response.getCookies()
-					cookies = []
-					c = new Cookie('name','toto')
-					d = new Cookie('lastName','titi')
-					cookies.push c
-					cookies.push d
-					response.addCookies cookies
+
+					# cookies = []
+					# c = new Cookie('name','toto')
+					# d = new Cookie('lastName','titi')
+					# cookies.push c
+					# cookies.push d
+					# response.addCookies cookies
 					# console.log  cookies
 
 					# console.log '\n<<<<<<<<<< ResponseCookies >>>>>>>'
@@ -78,13 +82,19 @@ server = net.createServer ServerOptions, (socket)->
 					# console.log '\n<<<<<<<<<< RESPONSE >>>>>>>'
 					# console.log response.getResponse()
 					response.sendResponse socket
+
 			catch err
 				console.log 'error',err
-				socket.end()
+				socket.destroy()
 	socket.on 'error',(err) ->
 		console.log 'socket: error',err
+		socket.destroy()
 	socket.on 'close', ->
 		console.log 'socket: close'
+	socket.setTimeout 5000
+	socket.on 'timeout', ->
+		console.log 'socket: timeout...'
+		socket.destroy()
 
 server.listen 9000,DOMAIN_NAME
 

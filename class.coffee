@@ -12,7 +12,7 @@ conf = JSON.parse(fs.readFileSync(path.join(__dirname,'/conf/local.json')
 	, 'utf8'))
 
 DOMAIN_NAME = 'localhost'
-SETCOOKIE = 'SETCOOKIE'
+SETCOOKIE = 'Set-Cookie'
 ROOT = path.join( __dirname , conf.contentFolderPath)
 sessionId = 1
 DEFAULT_PROTOCOL = 'HTTP/1.0'
@@ -195,7 +195,7 @@ class Response
 		@response =
 			header :
 				fields :
-					'set-Cookie' : []
+					SETCOOKIE : []
 			body : null
 
 	getResponseInfo : (socket,requestLineData,callback)->
@@ -336,26 +336,27 @@ class Response
 
 module.exports =
 
-	DOMAIN_NAME : DOMAIN_NAME
-	ROOT : ROOT
 	DEFAULT_PROTOCOL : DEFAULT_PROTOCOL
 	DEFAULT_EXTENSION : DEFAULT_EXTENSION
+	DOMAIN_NAME : DOMAIN_NAME
+	ROOT : ROOT
 	SESSION_ID : SESSION_ID
+	SETCOOKIE : SETCOOKIE
 
 	# REGEXS
-	FIRST_LINE_REGEX : FIRST_LINE_REGEX
 	AUTHORIZED_PATH: AUTHORIZED_PATH
+	FIRST_LINE_REGEX : FIRST_LINE_REGEX
+	NAME_VALUE_REGEX : NAME_VALUE_REGEX
 	REQUEST_HOST_REGEX : REQUEST_HOST_REGEX
 	REQUEST_PATH_REGEX : REQUEST_PATH_REGEX
-	NAME_VALUE_REGEX : NAME_VALUE_REGEX
 
 	#ARRAYS
-	statusMessages :  statusMessages
 	contentTypeMap :  contentTypeMap
+	statusMessages :  statusMessages
 
 	# CLASSES
+	Cookie : Cookie
 	ErrorHtml : ErrorHtml
 	RequestHeader : RequestHeader
-	Cookie : Cookie
-	SessionCookie : SessionCookie
 	Response : Response
+	SessionCookie : SessionCookie
