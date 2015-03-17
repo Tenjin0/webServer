@@ -1,5 +1,5 @@
 Dog = require './dog'
-server = require './server'
+server = require '../server'
 doggy = new Dog 'Tony'
 
 console.log doggy.getName()

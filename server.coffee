@@ -6,8 +6,9 @@
 fs = require 'fs'
 net = require 'net'
 path = require 'path'
+
 # CONSTANTES
-conf = JSON.parse(fs.readFileSync('conf/local.json'
+conf = JSON.parse(fs.readFileSync(path.join(__dirname,'/conf/local.json')
 	, 'utf8'))
 
 DOMAIN_NAME = 'localhost'
@@ -17,6 +18,7 @@ DEFAULT_PROTOCOL = 'HTTP/1.0'
 DEFAULT_EXTENSION = '.html'
 SESSION_ID = "sessionId"
 
+
 # REGEXS
 FIRST_LINE_REGEX = new RegExp "^(GET|POST|HEAD) ([\/].*) (HTTP\/[01]\.[0-9])$"
 AUTHORIZED_PATH = new RegExp "#{ROOT}.*"
@@ -25,6 +27,7 @@ REQUEST_HOST_REGEX = new RegExp "#{host}: ((.*):([]|[0-9]{4}))"
 REQUEST_PATH_REGEX = new RegExp "#{"\/$"}"
 COOKIE_REGEX = new RegExp "Cookie: (([^;]*=[^;]*;)*[^;]*=[^;]*)$"
 NAME_VALUE_REGEX = new RegExp "(.*)=(.*)"
+
 
 # DATAS
 statusMessages =
@@ -57,6 +60,7 @@ contentTypeMap =
 	'.html': 'text/html',
 	'.css': 'text/css'
 
+
 # OBJETS AND FUNCTIONS
 class ErrorHtml
 	constructor: (code) ->
@@ -75,6 +79,7 @@ class ErrorHtml
 		@body
 	length: ->
 		Buffer.byteLength(@body, 'utf8')
+
 
 # Determine statusCode contents' size and path that will be in the response Header
 
@@ -125,6 +130,7 @@ class RequestHeader
 	getDomain: ->
 		@host.domain
 
+
 class Cookie
 	constructor : (name,value,domain)->
 		# console.log name,value,domain
@@ -156,10 +162,14 @@ class Cookie
 			str += if v then "; #{i}=#{v}" else ""
 		str += if @secure then "; secure" else ""
 
+
+
 class SessionCookie extends Cookie
 	constructor : (domain)->
 		super SESSION_ID,sessionId++,domain
 		# @domain = domain
+
+
 class Response
 	constructor :  ->
 		@response =
@@ -283,6 +293,32 @@ class Response
 		@response
 
 
+# EXPORTS
+
+exports =
+	DOMAIN_NAME : DOMAIN_NAME
+	ROOT : ROOT
+	DEFAULT_PROTOCOL : DEFAULT_PROTOCOL
+	DEFAULT_EXTENSION : DEFAULT_EXTENSION
+	SESSION_ID : SESSION_ID
+
+	# REGEXS
+	FIRST_LINE_REGEX : FIRST_LINE_REGEX
+	AUTHORIZED_PATH: AUTHORIZED_PATH
+	REQUEST_HOST_REGEX : REQUEST_HOST_REGEX
+	REQUEST_PATH_REGEX : REQUEST_PATH_REGEX
+	NAME_VALUE_REGEX : NAME_VALUE_REGEX
+
+	#ARRAYS
+	statusMessages :  statusMessages
+	contentTypeMap :  contentTypeMap
+
+	# CLASSES
+	ErrorHtml : ErrorHtml
+	RequestHeader : RequestHeader
+	Cookie : Cookie
+	SessionCookie : SessionCookie
+	Response : Response
 
 # Options for the server
 ServerOptions =
