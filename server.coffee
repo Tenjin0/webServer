@@ -10,7 +10,7 @@ path = require 'path'
 conf = JSON.parse(fs.readFileSync('conf/local.json'
 	, 'utf8'))
 
-DOMAIN_NAME = 'patrice'
+DOMAIN_NAME = 'localhost'
 ROOT = path.join( __dirname , conf.contentFolderPath)
 sessionId = 1
 DEFAULT_PROTOCOL = 'HTTP/1.0'
