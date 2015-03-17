@@ -12,6 +12,7 @@ conf = JSON.parse(fs.readFileSync(path.join(__dirname,'/conf/local.json')
 	, 'utf8'))
 
 DOMAIN_NAME = 'localhost'
+SETCOOKIE = 'SETCOOKIE'
 ROOT = path.join( __dirname , conf.contentFolderPath)
 sessionId = 1
 DEFAULT_PROTOCOL = 'HTTP/1.0'
@@ -172,7 +173,7 @@ class Cookie
 		@path = path
 
 
-	# Set-Cookie: NAME=VALUE; expires=DATE;
+	# SETCOOKIE: NAME=VALUE; expires=DATE;
 	# path=PATH; domain=DOMAIN_NAME; secure
 	toString : ->
 		str = "#{@name}=#{@value}"
@@ -194,7 +195,7 @@ class Response
 		@response =
 			header :
 				fields :
-					'set-Cookies' : []
+					'set-Cookie' : []
 			body : null
 
 	getResponseInfo : (socket,requestLineData,callback)->
@@ -211,11 +212,11 @@ class Response
 					err = fs.accessSync path.join(ROOT, requestLineData.originalPath), fs.R_OK
 					tempPath = requestLineData.originalPath
 					tempStatusCode = 403
-					console.log err, tempStatusCode,tempPath
+					# console.log err, tempStatusCode,tempPath
 				catch error
 					tempPath = null
 					tempStatusCode = 404
-					console.log error, tempStatusCode,tempPath
+					# console.log error, tempStatusCode,tempPath
 			else if AUTHORIZED_PATH.test(path.join ROOT,tempPath)
 				if stats.isDirectory()
 					tempPath = path.join tempPath,'/'
@@ -250,12 +251,12 @@ class Response
 	addCookies : (cookies) ->
 		# for i,value of cookies
 		# 	console.log  '>>>>>>>>>>> ',i,value.name
-		@response.header.fields["Set-Cookie"] =
-		@response.header.fields["Set-Cookie"].concat cookies
+		@response.header.fields[SETCOOKIE] =
+		@response.header.fields[SETCOOKIE].concat cookies
 
 	addCookie : (cookie)->
 		# console.log 'response: cookies',@response.header
-		@response.header.fields["Set-Cookie"].push cookie
+		@response.header.fields[SETCOOKIE].push cookie
 
 	createReaderStream = (socket,relativePath,statusCode)->
 		if statusCode is 200
@@ -292,7 +293,7 @@ class Response
 		toString = ->
 			str = "#{responseHeader['statusLine']}\r\n"
 			for i,v of responseHeader['fields']
-				if i is 'Set-Cookie'
+				if i is SETCOOKIE
 					# str += "#{i}: "
 					for ind,val of v
 						str += "#{i}: #{val.name}=#{val.value}; path=#{val.fields.path}\r\n"
@@ -328,7 +329,7 @@ class Response
 		@response
 
 	getCookies : ->
-		@response.header.fields['set-Cookies']
+		@response.header.fields[SETCOOKIE]
 
 
 # EXPORTS

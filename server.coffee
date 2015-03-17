@@ -43,40 +43,44 @@ ServerOptions =
 
 # SERVER
 server = net.createServer ServerOptions, (socket)->
-
+	tempData =""
 	socket.on 'data' ,(data)->
+		tempData += data
+		console.log 'data: ',tempData
+		if tempData.match new RegExp "\r\n\r\n$"
+			console.log 'ca marche'
 		# console.log '\n<<<<<<<<<< Request >>>>>>>'
 		# console.log data.toString('utf-8')
 		# console.log ''
-		try
-			requestHeader = new RequestHeader data
-			response = new Response()
-			response.createResponse socket, requestHeader,->
+			try
+				requestHeader = new RequestHeader data
+				response = new Response()
+				response.createResponse socket, requestHeader,->
 
-				if !(sessionCookie =requestHeader.getCookieSession())
-					sessionCookie = new SessionCookie(requestHeader.getDomain())
-					response.addCookie(sessionCookie)
+					if !(sessionCookie =requestHeader.getCookieSession())
+						sessionCookie = new SessionCookie(requestHeader.getDomain())
+						response.addCookie(sessionCookie)
 
-				# console.log '\n<<<<<<<<<< ResponseCookies >>>>>>>'
-				# console.log response.getCookies()
-				cookies = []
-				c = new Cookie('name','toto')
-				d = new Cookie('lastName','titi')
-				cookies.push c
-				cookies.push d
-				response.addCookies cookies
-				# console.log  cookies
+					# console.log '\n<<<<<<<<<< ResponseCookies >>>>>>>'
+					# console.log response.getCookies()
+					cookies = []
+					c = new Cookie('name','toto')
+					d = new Cookie('lastName','titi')
+					cookies.push c
+					cookies.push d
+					response.addCookies cookies
+					# console.log  cookies
 
-				# console.log '\n<<<<<<<<<< ResponseCookies >>>>>>>'
-				# console.log response.getCookies()
-				# response.addCookies(requestHeader.getCookies())
+					# console.log '\n<<<<<<<<<< ResponseCookies >>>>>>>'
+					# console.log response.getCookies()
+					# response.addCookies(requestHeader.getCookies())
 
-				# console.log '\n<<<<<<<<<< RESPONSE >>>>>>>'
-				# console.log response.getResponse()
-				response.sendResponse socket
-		catch err
-			console.log 'error',err
-			socket.end()
+					# console.log '\n<<<<<<<<<< RESPONSE >>>>>>>'
+					# console.log response.getResponse()
+					response.sendResponse socket
+			catch err
+				console.log 'error',err
+				socket.end()
 	socket.on 'error',(err) ->
 		console.log 'socket: error',err
 	socket.on 'close', ->

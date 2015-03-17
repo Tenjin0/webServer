@@ -13,3 +13,6 @@ d = new Server.Cookie('lastName','titi')
 cookies.push c
 cookies.push d
 console.log cookies2.concat cookies
+str = "toto\r\n"
+if str.match (new RegExp "\r\n\r\n$")
+	console.log 'ca marche'
