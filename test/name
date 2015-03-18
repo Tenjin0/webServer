@@ -2,3 +2,4 @@ Gus
 
 
 @"GET / HTTP/1.1\r\nHost: localhost:9000\r\nAccept-Encoding: gzip, deflate, compress\r\nAccept: */*\r\nUser-Agent: HTTPie/0.8.0\r\nCookie: CUSTOMER=WILE_E_COYOTE; sessionID=1\r\n\r\n";
+ GET / HTTP/1.0

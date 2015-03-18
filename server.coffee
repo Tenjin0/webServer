@@ -44,27 +44,27 @@ ServerOptions =
 # SERVER
 server = net.createServer ServerOptions, (socket)->
 	server.getConnections (err,count) ->
-		console.log 'server connections',err, count
+		console.log 'server connections',err, count,socket.remoteAddress,socket.remotePort,socket.remoteFamily
 	socket.setEncoding('utf8')
 	socket.on 'data' ,(data)->
 		if !tempData
 			tempData = ""
-		tempData += data
+		# tempData += data
 		console.log '\n<<<<<<<<<< DATA >>>>>>>'
-		console.log tempData
+		console.log data
 		if match = tempData.match new RegExp ".*"
 			# console.log 'ca marche',match
 		# console.log '\n<<<<<<<<<< Request >>>>>>>'
 		# console.log data.toString('utf-8')
 		# console.log ''
-			try
-				requestHeader = new RequestHeader data
-				response = new Response()
-				response.createResponse socket, requestHeader,->
+			# try
+			requestHeader = new RequestHeader socket,data
+			response = new Response()
+			response.createResponse socket, requestHeader,->
 
-					if !(sessionCookie =requestHeader.getCookieSession())
-						sessionCookie = new SessionCookie(requestHeader.getDomain())
-						response.addCookie(sessionCookie)
+				if !(sessionCookie =requestHeader.getCookieSession())
+					sessionCookie = new SessionCookie(requestHeader.getDomain())
+					response.addCookie(sessionCookie)
 
 					# console.log '\n<<<<<<<<<< ResponseCookies >>>>>>>'
 					# console.log response.getCookies()
@@ -84,19 +84,24 @@ server = net.createServer ServerOptions, (socket)->
 					# console.log '\n<<<<<<<<<< RESPONSE >>>>>>>'
 					# console.log response.getResponse()
 					response.sendResponse socket
+			# catch err
+			# 	console.log 'error',err
+			# 	socket.destroy()
 
-			catch err
-				console.log 'error',err
-				socket.destroy()
 	socket.on 'error',(err) ->
 		console.log 'socket: error',err
 		socket.destroy()
+		socket.on 'open', ->
+		console.log 'socket: open',socket.remoteAddress,socket.remotePort
 	socket.on 'close', ->
 		console.log 'socket: close'
-	socket.setTimeout 30000
-	socket.on 'timeout', ->
-		console.log 'socket: timeout...'
-		socket.destroy()
+	# socket.setTimeout 30000
+	# socket.on 'timeout', ->
+	# 	console.log 'socket: timeout...'
+	# 	socket.destroy()
+
+	server.on 'error', (err) ->
+		console.log 'server: error',err
 
 server.listen 9000,DOMAIN_NAME
 

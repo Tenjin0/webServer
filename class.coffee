@@ -88,8 +88,8 @@ class ErrorHtml
 # Determine statusCode contents' size and path that will be in the response Header
 
 class RequestHeader
-	constructor: (data) ->
-		requestLine  = @parseRequestHeader data
+	constructor: (socket,data) ->
+		requestLine  = @parseRequestHeader socket,data
 		if requestLine
 			@method = requestLine.method
 			@protocol = requestLine.protocol
@@ -100,7 +100,7 @@ class RequestHeader
 		else
 			throw new Error 'RequestHeader not create'
 
-	parseRequestHeader : (data)->
+	parseRequestHeader : (socket,data)->
 		# console.log '<<<<<<<<<< REQUEST DATA >>>>>>>'
 		# console.log data.toString() + '\n'
 		requestLines = (data.toString().split "\r\n")
@@ -117,6 +117,11 @@ class RequestHeader
 					requestLine.host =
 						domain : matchHost[2]
 						port : matchHost[3]
+				else
+					requestLine.host =
+						domain : socket.remoteAddress
+						port : socket.remotePort
+				console.log requestLine.host
 				if matchCookie = line.match COOKIE_REGEX
 					requestLine['cookies'] = []
 					split = matchCookie[1].split("; ")
@@ -233,11 +238,11 @@ class Response
 				tempErrorHtml= errorHtml.getBody()
 				tempContentSize = errorHtml.length()
 			tempReadStream = createReaderStream socket, tempPath,tempStatusCode
-			tempHost = requestLineData.host ? null
+			# tempHost = requestLineData.host ? null
 
 			responseEntity =
 				method : requestLineData.method
-				host : tempHost
+				host : requestLineData.host
 				protocol : requestLineData.protocol
 				extension : tempExtension
 				referer : requestLineData.originalPath
@@ -323,7 +328,6 @@ class Response
 
 	sendResponse :(socket) ->
 		socket.write @response.header.toString(),=>
-			console.log '@response', @response
 			if @response.body.readStream
 				@response.body.readStream.pipe socket
 			else
