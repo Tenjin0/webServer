@@ -236,6 +236,7 @@ class Response
 			tempHost = requestLineData.host ? null
 
 			responseEntity =
+				method : requestLineData.method
 				host : tempHost
 				protocol : requestLineData.protocol
 				extension : tempExtension
@@ -277,18 +278,16 @@ class Response
 			callback()
 
 	createResponseHeader :(responseInfo) ->
-		console.log ''
 		responseHeader =
 			statusLine : "#{responseInfo.protocol} #{responseInfo.statusCode} #{statusMessages[responseInfo.statusCode]}"
 			fields :
 				'Content-Type' : contentTypeMap[responseInfo.extension] ? 'text/plain'
 				'Date' : new Date()
-				'Content-Length' : responseInfo.contentSize ? 0
+				'Content-Length' : if (responseInfo.contentSize && responseInfo.method  isnt 'HEAD') then responseInfo.contentSize else 0
 				'Connection' : 'close'
 				'Set-Cookie' : []
 		if (responseInfo.statusCode is 302 || responseInfo.statusCode is 301 )
 			responseHeader.fields['Location'] = "http://" + (path.join "#{responseInfo.host.domain}:#{responseInfo.host.port}",responseInfo['path'])
-
 
 		toString = ->
 			str = "#{responseHeader['statusLine']}\r\n"
@@ -312,16 +311,23 @@ class Response
 
 	createResponseBody : (info) ->
 		responseBody =
-			errorHtml : info.errorHtml
 			extension : info.extension
-			readStream : info.readStream
+
+		if info.method is 'GET' || info.method is 'POST'
+			responseBody['readStream'] =info.readStream
+			responseBody['errorHtml'] = info.errorHtml
+		else
+			responseBody['readStream'] = null
+			responseBody['errorHtml'] = null
+		responseBody
 
 	sendResponse :(socket) ->
 		socket.write @response.header.toString(),=>
+			console.log '@response', @response
 			if @response.body.readStream
 				@response.body.readStream.pipe socket
 			else
-				if @response.header.statusCode is 302
+				if @response.header.statusCode is 302 || !@response.body.errorHtml
 					socket.end()
 				else
 					socket.end(@response.body.errorHtml)

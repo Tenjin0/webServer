@@ -43,6 +43,8 @@ ServerOptions =
 
 # SERVER
 server = net.createServer ServerOptions, (socket)->
+	server.getConnections (err,count) ->
+		console.log 'server connections',err, count
 	socket.setEncoding('utf8')
 	socket.on 'data' ,(data)->
 		if !tempData
@@ -50,8 +52,8 @@ server = net.createServer ServerOptions, (socket)->
 		tempData += data
 		console.log '\n<<<<<<<<<< DATA >>>>>>>'
 		console.log tempData
-		if match = tempData.match new RegExp "\r\n\r\n"
-			console.log 'ca marche',match
+		if match = tempData.match new RegExp ".*"
+			# console.log 'ca marche',match
 		# console.log '\n<<<<<<<<<< Request >>>>>>>'
 		# console.log data.toString('utf-8')
 		# console.log ''
@@ -91,7 +93,7 @@ server = net.createServer ServerOptions, (socket)->
 		socket.destroy()
 	socket.on 'close', ->
 		console.log 'socket: close'
-	socket.setTimeout 5000
+	socket.setTimeout 30000
 	socket.on 'timeout', ->
 		console.log 'socket: timeout...'
 		socket.destroy()
