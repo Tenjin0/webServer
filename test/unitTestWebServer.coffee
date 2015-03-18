@@ -7,16 +7,16 @@ net = require 'net'
 socket = new net.Socket()
 
 socket.connect 9000,'localhost', ->
- console.log 'connected to server!',socket.remoteAddress,socket.remotePort
- socket.write  header
- socket.write  header2
+  console.log 'connected to server!',socket.remoteAddress,socket.remotePort
+  socket.write  header
+  socket.write  header2
 
 socket.on 'data', (data)->
- console.log "<<<<<< DATA >>>>>>"
- console.log data.toString()
- socket.end()
+  console.log "<<<<<< DATA >>>>>>"
+  console.log data.toString()
+  socket.end()
 socket.on 'error',(err)->
-	console.log 'client : error',err
+  console.log 'client : error',err
 socket.on 'end', ->
-	console.log 'disconnected from server'
+  console.log 'disconnected from server'
 
