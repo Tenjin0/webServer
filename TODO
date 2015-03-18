@@ -1,4 +1,5 @@
 Create unitTest
+	testUnitaire send header en boucle test de charge -> necessité du socket.pause/resume?
 Ameliorer la gestion des cookies -> ne renvoyer que les cookies nouvellement crées ou modifiés
 Gerer les parametres de l'URL
 Gestion de la methode POST

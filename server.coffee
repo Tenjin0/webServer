@@ -1,5 +1,6 @@
 ### reference
-	http://curl.haxx.se/rfc/cookie_spec.html
+	cookie spec : http://curl.haxx.se/rfc/cookie_spec.html
+	buffer https://docs.nodejitsu.com/articles/advanced/buffers/how-to-use-buffers
 ###
 
 # MODULES RECQUIS
@@ -39,55 +40,62 @@ Response = uploadClass.Response
 # Options for the server
 ServerOptions =
 	allowHalfOpen: true,
-	pauseOnConnect: false
+	pauseOnConnect: true
 
 # SERVER
 server = net.createServer ServerOptions, (socket)->
 	server.getConnections (err,count) ->
 		console.log 'server connections',err, count,socket.remoteAddress,socket.remotePort,socket.remoteFamily
 	socket.setEncoding('utf8')
+	socket.resume()
 	socket.on 'data' ,(data)->
 		if !tempData
-			tempData = ""
-		# tempData += data
+			tempData = new Buffer(data,"utf-8")
+
+		tempData.write data,"utf-8"
 		console.log '\n<<<<<<<<<< DATA >>>>>>>'
-		console.log data
-		if match = tempData.match new RegExp ".*"
-			# console.log 'ca marche',match
+		console.log tempData
+		if match = data.match new RegExp "\r\n\r\n"
+			socket.pause()
+			console.log 'ca marche',data.substring 0,match.index
 		# console.log '\n<<<<<<<<<< Request >>>>>>>'
 		# console.log data.toString('utf-8')
 		# console.log ''
-			# try
-			requestHeader = new RequestHeader socket,data
-			response = new Response()
-			response.createResponse socket, requestHeader,->
+			try
+				requestHeader = new RequestHeader socket,data.substring 0,match.index
+				response = new Response()
+				response.createResponse socket, requestHeader,->
 
-				if !(sessionCookie =requestHeader.getCookieSession())
-					sessionCookie = new SessionCookie(requestHeader.getDomain())
-					response.addCookie(sessionCookie)
+					if !(sessionCookie =requestHeader.getCookieSession())
+						sessionCookie = new SessionCookie(requestHeader.getDomain())
+						response.addCookie(sessionCookie)
 
-					# console.log '\n<<<<<<<<<< ResponseCookies >>>>>>>'
-					# console.log response.getCookies()
+						# console.log '\n<<<<<<<<<< ResponseCookies >>>>>>>'
+						# console.log response.getCookies()
 
-					# cookies = []
-					# c = new Cookie('name','toto')
-					# d = new Cookie('lastName','titi')
-					# cookies.push c
-					# cookies.push d
-					# response.addCookies cookies
-					# console.log  cookies
+						# cookies = []
+						# c = new Cookie('name','toto')
+						# d = new Cookie('lastName','titi')
+						# cookies.push c
+						# cookies.push d
+						# response.addCookies cookies
+						# console.log  cookies
 
-					# console.log '\n<<<<<<<<<< ResponseCookies >>>>>>>'
-					# console.log response.getCookies()
-					# response.addCookies(requestHeader.getCookies())
+						# console.log '\n<<<<<<<<<< ResponseCookies >>>>>>>'
+						# console.log response.getCookies()
+						# response.addCookies(requestHeader.getCookies())
 
-					# console.log '\n<<<<<<<<<< RESPONSE >>>>>>>'
-					# console.log response.getResponse()
-					response.sendResponse socket
-			# catch err
-			# 	console.log 'error',err
-			# 	socket.destroy()
-
+						# console.log '\n<<<<<<<<<< RESPONSE >>>>>>>'
+						# console.log response.getResponse()
+						# socket.pause()
+						response.sendResponse socket
+						# socket.resume()
+			catch err
+				console.log 'error',err
+				socket.destroy()
+				# socket.resume()
+			finally
+				socket.resume()
 	socket.on 'error',(err) ->
 		console.log 'socket: error',err
 		socket.destroy()
@@ -95,10 +103,10 @@ server = net.createServer ServerOptions, (socket)->
 		console.log 'socket: open',socket.remoteAddress,socket.remotePort
 	socket.on 'close', ->
 		console.log 'socket: close'
-	# socket.setTimeout 30000
-	# socket.on 'timeout', ->
-	# 	console.log 'socket: timeout...'
-	# 	socket.destroy()
+	socket.setTimeout 10000
+	socket.on 'timeout', ->
+		console.log 'socket: timeout...'
+		socket.destroy()
 
 	server.on 'error', (err) ->
 		console.log 'server: error',err

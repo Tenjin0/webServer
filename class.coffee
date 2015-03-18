@@ -120,10 +120,10 @@ class RequestHeader
 				else
 					requestLine.host =
 						domain : socket.remoteAddress
-						port : socket.remotePort
-				console.log requestLine.host
+						port : socket.localPort
+				# console.log requesstLine.host
 				if matchCookie = line.match COOKIE_REGEX
-					requestLine['cookies'] = []
+					requestLine['cookies'] =[]
 					split = matchCookie[1].split("; ")
 					for i in split
 						match2 = i.match NAME_VALUE_REGEX
@@ -334,7 +334,7 @@ class Response
 				if @response.header.statusCode is 302 || !@response.body.errorHtml
 					socket.end()
 				else
-					socket.end(@response.body.errorHtml)
+					socket.write(@response.body.errorHtml)
 	getResponse: ->
 		@response
 
