@@ -55,12 +55,11 @@ server = net.createServer ServerOptions, (socket)->
 		tempData.write data,"utf-8"
 		console.log '\n<<<<<<<<<< DATA >>>>>>>'
 		console.log tempData
-		if match = data.match new RegExp "\r\n\r\n"
+		if match = data.toString().match new RegExp "\r\n\r\n"
 			socket.pause()
 			console.log 'ca marche',data.substring 0,match.index
 		# console.log '\n<<<<<<<<<< Request >>>>>>>'
 		# console.log data.toString('utf-8')
-		# console.log ''
 			try
 				requestHeader = new RequestHeader socket,data.substring 0,match.index
 				response = new Response()
