@@ -45,7 +45,7 @@ ServerOptions =
 # SERVER
 server = net.createServer ServerOptions, (socket)->
 	server.getConnections (err,count) ->
-		console.log 'server connections',err, count,socket.remoteAddress,socket.remotePort,socket.remoteFamily
+		# console.log 'server connections',err, count,socket.remoteAddress,socket.remotePort#,socket.remoteFamily
 	socket.setEncoding('utf8')
 	socket.resume()
 	socket.on 'data' ,(data)->
@@ -53,11 +53,8 @@ server = net.createServer ServerOptions, (socket)->
 			tempData = new Buffer(data,"utf-8")
 
 		tempData.write data,"utf-8"
-		console.log '\n<<<<<<<<<< DATA >>>>>>>'
-		console.log tempData
 		if match = data.toString().match new RegExp "\r\n\r\n"
 			socket.pause()
-			console.log 'ca marche',data.substring 0,match.index
 		# console.log '\n<<<<<<<<<< Request >>>>>>>'
 		# console.log data.toString('utf-8')
 			try
@@ -99,12 +96,12 @@ server = net.createServer ServerOptions, (socket)->
 		console.log 'socket: error',err
 		socket.destroy()
 		socket.on 'open', ->
-		console.log 'socket: open',socket.remoteAddress,socket.remotePort
+		# console.log 'socket: open',socket.remoteAddress,socket.remotePort
 	socket.on 'close', ->
-		console.log 'socket: close'
+		# console.log 'socket: close'
 	socket.setTimeout 10000
 	socket.on 'timeout', ->
-		console.log 'socket: timeout...'
+		# console.log 'socket: timeout...'
 		socket.destroy()
 
 	server.on 'error', (err) ->
