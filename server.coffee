@@ -26,11 +26,11 @@ NAME_VALUE_REGEX = uploadClass.NAME_VALUE_REGEX
 
 #ARRAYS
 statusMessages = uploadClass.statusMessages
-contentTypeMap = uploadClass.contentTypeMap
+mimeType = uploadClass.mimeType
 
 # CLASSES
 ErrorHtml = uploadClass.ErrorHtml
-RequestHeader = uploadClass.RequestHeader
+Request = uploadClass.Request
 Cookie = uploadClass.Cookie
 SessionCookie = uploadClass.SessionCookie
 Response = uploadClass.Response
@@ -60,13 +60,13 @@ server = net.createServer ServerOptions, (socket)->
 			#console.log 'ca marche',data.substring 0,match.index
 		# console.log '\n<<<<<<<<<< Request >>>>>>>'
 		# console.log data.toString('utf-8')
+			 
 			try
-				requestHeader = new RequestHeader socket,data.substring 0,match.index
+				request = new Request socket,data.substring 0,match.index
 				response = new Response()
-				response.createResponse socket, requestHeader,->
-
-					if !(sessionCookie =requestHeader.getCookieSession())
-						sessionCookie = new SessionCookie(requestHeader.getDomain())
+				response.createResponse socket, request,->
+					if !(sessionCookie =request.getCookieSession())
+						sessionCookie = new SessionCookie(request.getDomain())
 						response.addCookie(sessionCookie)
 
 						# console.log '\n<<<<<<<<<< ResponseCookies >>>>>>>'
@@ -82,7 +82,7 @@ server = net.createServer ServerOptions, (socket)->
 
 						# console.log '\n<<<<<<<<<< ResponseCookies >>>>>>>'
 						# console.log response.getCookies()
-						# response.addCookies(requestHeader.getCookies())
+						# response.addCookies(Request.getCookies())
 
 						# console.log '\n<<<<<<<<<< RESPONSE >>>>>>>'
 						# console.log response.getResponse()
@@ -90,7 +90,7 @@ server = net.createServer ServerOptions, (socket)->
 						response.sendResponse socket
 						# socket.resume()
 			catch err
-				console.log 'error',err
+				console.log 'request error',err
 				#socket.destroy()
 				socket.resume()
 			finally
@@ -102,7 +102,7 @@ server = net.createServer ServerOptions, (socket)->
 		console.log 'socket: open',socket.remoteAddress,socket.remotePort
 	socket.on 'close', ->
 		console.log 'socket: close'
-	socket.setTimeout 10000
+	socket.setTimeout 1000
 	socket.on 'timeout', ->
 		console.log 'socket: timeout...'
 		socket.destroy()
