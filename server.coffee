@@ -53,11 +53,11 @@ server = net.createServer ServerOptions, (socket)->
 			tempData = new Buffer(data,"utf-8")
 
 		tempData.write data,"utf-8"
-		console.log '\n<<<<<<<<<< DATA >>>>>>>'
-		console.log tempData
+		# console.log '\n<<<<<<<<<< DATA >>>>>>>'
+		# console.log tempData
 		if match = data.toString().match new RegExp "\r\n\r\n"
 			socket.pause()
-			console.log 'ca marche',data.substring 0,match.index
+			#console.log 'ca marche',data.substring 0,match.index
 		# console.log '\n<<<<<<<<<< Request >>>>>>>'
 		# console.log data.toString('utf-8')
 			try
@@ -91,8 +91,8 @@ server = net.createServer ServerOptions, (socket)->
 						# socket.resume()
 			catch err
 				console.log 'error',err
-				socket.destroy()
-				# socket.resume()
+				#socket.destroy()
+				socket.resume()
 			finally
 				socket.resume()
 	socket.on 'error',(err) ->
