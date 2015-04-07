@@ -49,7 +49,7 @@ statusMessages =
 	502 : "Bad Gateway"
 	503 : "Service Unavailable"
 
-contentTypeMap =
+mimeType =
 	'.jpg': 'image/jpg',
 	'.jpeg': 'image/jpeg',
 	'.png': 'image/png',
@@ -87,9 +87,9 @@ class ErrorHtml
 
 # Determine statusCode contents' size and path that will be in the response Header
 
-class RequestHeader
+class Request
 	constructor: (socket,data) ->
-		requestLine  = @parseRequestHeader socket,data
+		requestLine  = @parseRequest socket,data
 		if requestLine
 			@method = requestLine.method
 			@protocol = requestLine.protocol
@@ -98,9 +98,9 @@ class RequestHeader
 			@originalPath = requestLine.originalPath
 			@cookies = @transformCookies requestLine.cookies
 		else
-			throw new Error 'RequestHeader not create'
+			throw new Error 'Request not create'
 
-	parseRequestHeader : (socket,data)->
+	parseRequest : (socket,data)->
 		# console.log '<<<<<<<<<< REQUEST DATA >>>>>>>'
 		# console.log data.toString() + '\n'
 		requestLines = (data.toString().split "\r\n")
@@ -286,7 +286,7 @@ class Response
 		responseHeader =
 			statusLine : "#{responseInfo.protocol} #{responseInfo.statusCode} #{statusMessages[responseInfo.statusCode]}"
 			fields :
-				'Content-Type' : contentTypeMap[responseInfo.extension] ? 'text/plain'
+				'Content-Type' : mimeType[responseInfo.extension] ? 'text/plain'
 				'Date' : new Date()
 				'Content-Length' : if (responseInfo.contentSize && responseInfo.method  isnt 'HEAD') then responseInfo.contentSize else 0
 				'Connection' : 'close'
@@ -361,12 +361,12 @@ module.exports =
 	REQUEST_PATH_REGEX : REQUEST_PATH_REGEX
 
 	#ARRAYS
-	contentTypeMap :  contentTypeMap
+	mimeType :  mimeType
 	statusMessages :  statusMessages
 
 	# CLASSES
 	Cookie : Cookie
 	ErrorHtml : ErrorHtml
-	RequestHeader : RequestHeader
+	Request : Request
 	Response : Response
 	SessionCookie : SessionCookie
