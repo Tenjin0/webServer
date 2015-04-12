@@ -68,9 +68,7 @@ server = net.createServer ServerOptions, (socket)->
 					if !(sessionCookie =request.getCookieSession())
 						sessionCookie = new SessionCookie(request.getDomain())
 						response.addCookie(sessionCookie)
-
-					
-				response.sendResponse socket
+					response.sendResponse socket
 	
 			catch err
 				console.log 'request error',err
@@ -97,5 +95,5 @@ server.on 'error', (err) ->
 	console.log 'server: error',err
 
 
-console.log 'Server is listening', DOMAIN_NAME, ' ', 9000
+console.log 'Server is listening', DOMAIN_NAME + ':' + 9000
 
