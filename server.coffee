@@ -58,9 +58,9 @@ server = net.createServer ServerOptions, (socket)->
 		if match = data.toString().match new RegExp "\r\n\r\n"
 			socket.pause()
 			#console.log 'ca marche',data.substring 0,match.index
-		# console.log '\n<<<<<<<<<< Request >>>>>>>'
-		# console.log data.toString('utf-8')
-			 
+			# console.log '\n<<<<<<<<<< Request >>>>>>>'
+			# console.log data.toString('utf-8')
+
 			try
 				request = new Request socket,data.substring 0,match.index
 				response = new Response()
@@ -70,7 +70,7 @@ server = net.createServer ServerOptions, (socket)->
 						response.addCookie(sessionCookie)
 
 					
-					response.sendResponse socket
+				response.sendResponse socket
 	
 			catch err
 				console.log 'request error',err
@@ -92,6 +92,10 @@ server = net.createServer ServerOptions, (socket)->
 
 
 server.listen 9000,DOMAIN_NAME
+
 server.on 'error', (err) ->
 	console.log 'server: error',err
+
+
+console.log 'Server is listening', DOMAIN_NAME, ' ', 9000
 
