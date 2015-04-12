@@ -69,46 +69,29 @@ server = net.createServer ServerOptions, (socket)->
 						sessionCookie = new SessionCookie(request.getDomain())
 						response.addCookie(sessionCookie)
 
-						# console.log '\n<<<<<<<<<< ResponseCookies >>>>>>>'
-						# console.log response.getCookies()
-
-						# cookies = []
-						# c = new Cookie('name','toto')
-						# d = new Cookie('lastName','titi')
-						# cookies.push c
-						# cookies.push d
-						# response.addCookies cookies
-						# console.log  cookies
-
-						# console.log '\n<<<<<<<<<< ResponseCookies >>>>>>>'
-						# console.log response.getCookies()
-						# response.addCookies(Request.getCookies())
-
-						# console.log '\n<<<<<<<<<< RESPONSE >>>>>>>'
-						# console.log response.getResponse()
-						# socket.pause()
-						response.sendResponse socket
-						# socket.resume()
+					
+					response.sendResponse socket
+	
 			catch err
 				console.log 'request error',err
-				#socket.destroy()
+				# socket.destroy()
 				socket.resume()
 			finally
 				socket.resume()
 	socket.on 'error',(err) ->
 		console.log 'socket: error',err
 		socket.destroy()
-		socket.on 'open', ->
-		console.log 'socket: open',socket.remoteAddress,socket.remotePort
+	# socket.on 'open', ->
+	# 	console.log 'socket: open',socket.remoteAddress,socket.remotePort
 	socket.on 'close', ->
 		console.log 'socket: close'
-	socket.setTimeout 1000
+	socket.setTimeout 500
 	socket.on 'timeout', ->
 		console.log 'socket: timeout...'
 		socket.destroy()
 
-	server.on 'error', (err) ->
-		console.log 'server: error',err
 
 server.listen 9000,DOMAIN_NAME
+server.on 'error', (err) ->
+	console.log 'server: error',err
 

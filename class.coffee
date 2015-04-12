@@ -146,8 +146,8 @@ class Request
 
 	getCookieSession : ->
 		for i,v of @cookies
-			if i is SESSION_ID
-				return new Cookie(i,v)
+			if v.name is SESSION_ID
+				return new Cookie(v.name,v.value)
 		return null
 
 	getDomain: ->
